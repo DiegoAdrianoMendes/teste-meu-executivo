@@ -1,0 +1,332 @@
+# Wiring contract for docker-compose.oss.yml. This fragment is intentionally
+# stored beside the overlay and is not an instruction to edit Compose
+# automatically. Paths below are relative to the repository root.
+
+x-chattermate-environment: &chattermate-environment
+  APP_BASE_URL: http://127.0.0.1:${KLM_OSS_CHATTERMATE_PORT:-3300}
+  BACKEND_URL: http://127.0.0.1:${KLM_OSS_CHATTERMATE_PORT:-3300}
+  CONVERSATION_SECRET_KEY: ${KLM_OSS_CHATTERMATE_CONVERSATION_SECRET:?generate_local_secret}
+  CORS_ORIGINS: '["http://127.0.0.1:${KLM_OSS_CHATTERMATE_PORT:-3300}","http://localhost:${KLM_OSS_CHATTERMATE_PORT:-3300}"]'
+  DATABASE_URL: postgresql+psycopg://chattermate:${KLM_OSS_CHATTERMATE_POSTGRES_PASSWORD:?generate_local_secret}@chattermate-postgres:5432/chattermate
+  EMBEDDING_MAX_WORKERS: "2"
+  EMBEDDING_SEQUENTIAL_FALLBACK: "true"
+  EMBEDDING_SINGLE_THREADED: "true"
+  ENABLE_IMMEDIATE_EMBEDDING: "true"
+  ENCRYPTION_KEY: ${KLM_OSS_CHATTERMATE_ENCRYPTION_KEY:?generate_fernet_key}
+  ENVIRONMENT: production
+  FIREBASE_CREDENTIALS: ${KLM_OSS_CHATTERMATE_FIREBASE_CREDENTIALS:-}
+  FRONTEND_URL: http://127.0.0.1:${KLM_OSS_CHATTERMATE_PORT:-3300}
+  GRACEFUL_TIMEOUT: "30"
+  HELP_CENTER_BASE_DOMAIN: chattermate.localhost
+  HELP_CENTER_CNAME_TARGET: chattermate.localhost
+  HF_HUB_DISABLE_TELEMETRY: "1"
+  JIRA_CLIENT_ID: ${KLM_OSS_CHATTERMATE_JIRA_CLIENT_ID:-}
+  JIRA_CLIENT_SECRET: ${KLM_OSS_CHATTERMATE_JIRA_CLIENT_SECRET:-}
+  JIRA_REDIRECT_URI: http://127.0.0.1:${KLM_OSS_CHATTERMATE_PORT:-3300}/api/v1/jira/callback
+  JWT_ALGORITHM: HS256
+  JWT_SECRET_KEY: ${KLM_OSS_CHATTERMATE_JWT_SECRET:?generate_local_secret}
+  KB_MAX_WORKERS: "2"
+  KEEP_ALIVE: "5"
+  LOG_LEVEL: info
+  META_APP_ID: ${KLM_OSS_CHATTERMATE_META_APP_ID:-}
+  META_APP_SECRET: ${KLM_OSS_CHATTERMATE_META_APP_SECRET:-}
+  META_WEBHOOK_VERIFY_TOKEN: ${KLM_OSS_CHATTERMATE_META_WEBHOOK_VERIFY_TOKEN:-}
+  REDIS_ENABLED: "true"
+  REDIS_URL: redis://:${KLM_OSS_CHATTERMATE_REDIS_PASSWORD:?generate_local_secret}@chattermate-redis:6379/0
+  S3_FILE_STORAGE: "false"
+  SHOPIFY_API_KEY: ${KLM_OSS_CHATTERMATE_SHOPIFY_API_KEY:-}
+  SHOPIFY_API_SECRET: ${KLM_OSS_CHATTERMATE_SHOPIFY_API_SECRET:-}
+  SLACK_CLIENT_ID: ${KLM_OSS_CHATTERMATE_SLACK_CLIENT_ID:-}
+  SLACK_CLIENT_SECRET: ${KLM_OSS_CHATTERMATE_SLACK_CLIENT_SECRET:-}
+  SLACK_REDIRECT_URI: http://127.0.0.1:${KLM_OSS_CHATTERMATE_PORT:-3300}/api/v1/channels/slack/callback
+  SLACK_SIGNING_SECRET: ${KLM_OSS_CHATTERMATE_SLACK_SIGNING_SECRET:-}
+  TIMEOUT: "120"
+  TOKENIZERS_PARALLELISM: "false"
+  TZ: ${KLM_OSS_CHATTERMATE_TIMEZONE:-America/Sao_Paulo}
+  VERIFY_SSL_CERTIFICATES: "true"
+  VITE_WIDGET_URL: http://127.0.0.1:${KLM_OSS_CHATTERMATE_PORT:-3300}
+  WORKERS: "1"
+  CHATTERMATE_STARTUP_TIMEOUT: ${KLM_OSS_CHATTERMATE_START_TIMEOUT:-300}
+
+x-chattermate-backend: &chattermate-backend
+  image: klm/chattermate-backend:1.0.14-local
+  build:
+    context: .
+    dockerfile: docker/oss/chattermate/Dockerfile.backend
+  profiles: [automation]
+  environment: *chattermate-environment
+  read_only: true
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=256m,mode=1777
+    # Upstream's logger always adds a bounded rotating file handler in ./logs
+    # in addition to stdout. Keep it ephemeral and writable under read_only.
+    - /app/logs:rw,noexec,nosuid,size=64m,mode=0750,uid=10001,gid=10001
+  labels:
+    com.klm.runtime: oss-local
+    com.klm.upstream: chattermate
+    com.klm.upstream.version: 1.0.14
+
+services:
+  chattermate-postgres:
+    image: klm/chattermate-postgres:1.0.14-local
+    build:
+      context: .
+      dockerfile: docker/oss/chattermate/Dockerfile.postgres
+    profiles: [automation]
+    restart: unless-stopped
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_DB: chattermate
+      POSTGRES_PASSWORD: ${KLM_OSS_CHATTERMATE_POSTGRES_PASSWORD:?generate_local_secret}
+      POSTGRES_USER: chattermate
+      TZ: ${KLM_OSS_CHATTERMATE_TIMEZONE:-America/Sao_Paulo}
+    volumes:
+      - chattermate-postgres-data:/var/lib/postgresql/data
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+          && test "$$(psql -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -tAc
+          "SELECT count(*) FROM pg_extension WHERE extname = 'vector'")" = "1"
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+    stop_grace_period: 30s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: chattermate
+      com.klm.data: chattermate-postgres
+
+  chattermate-redis:
+    image: redis:7.4.2-alpine
+    profiles: [automation]
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${KLM_OSS_CHATTERMATE_REDIS_PASSWORD:?generate_local_secret}
+      TZ: ${KLM_OSS_CHATTERMATE_TIMEZONE:-America/Sao_Paulo}
+    command:
+      - /bin/sh
+      - -ec
+      - exec redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"
+    volumes:
+      - chattermate-redis-data:/data
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - REDISCLI_AUTH="$${REDIS_PASSWORD}" redis-cli --no-auth-warning ping | grep -qx PONG
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+    stop_grace_period: 20s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: chattermate
+      com.klm.data: chattermate-redis
+
+  chattermate-init:
+    <<: *chattermate-backend
+    restart: "no"
+    command: [migrate]
+    depends_on:
+      chattermate-postgres:
+        condition: service_healthy
+      chattermate-redis:
+        condition: service_healthy
+    volumes:
+      - chattermate-config:/app/config
+    networks:
+      - klm-oss-local
+
+  chattermate-api:
+    <<: *chattermate-backend
+    restart: unless-stopped
+    command: [api]
+    depends_on:
+      chattermate-init:
+        condition: service_completed_successfully
+      chattermate-postgres:
+        condition: service_healthy
+      chattermate-redis:
+        condition: service_healthy
+    volumes:
+      - chattermate-config:/app/config
+      - chattermate-uploads:/app/uploads
+      - chattermate-temp:/app/temp
+      - chattermate-model-cache:/app/.cache
+    networks:
+      - klm-oss-local
+      - chattermate-egress
+    healthcheck:
+      test: [CMD, python, /opt/chattermate/runtime_preflight.py, http-health, http://127.0.0.1:8000/health]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    stop_grace_period: 45s
+
+  chattermate-worker:
+    <<: *chattermate-backend
+    restart: unless-stopped
+    command: [worker]
+    depends_on:
+      chattermate-api:
+        condition: service_healthy
+      chattermate-init:
+        condition: service_completed_successfully
+      chattermate-postgres:
+        condition: service_healthy
+      chattermate-redis:
+        condition: service_healthy
+    volumes:
+      - chattermate-config:/app/config
+      - chattermate-uploads:/app/uploads
+      - chattermate-temp:/app/temp
+      - chattermate-model-cache:/app/.cache
+    networks:
+      - klm-oss-local
+      - chattermate-egress
+    healthcheck:
+      test: [CMD, python, /opt/chattermate/runtime_preflight.py, worker-health]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    stop_grace_period: 60s
+
+  chattermate-frontend:
+    image: klm/chattermate-frontend:1.0.14-local
+    build:
+      context: .
+      dockerfile: docker/oss/chattermate/Dockerfile.frontend
+    profiles: [automation]
+    restart: unless-stopped
+    environment:
+      VITE_FIREBASE_API_KEY: ${KLM_OSS_CHATTERMATE_FIREBASE_API_KEY:-}
+      VITE_FIREBASE_APP_ID: ${KLM_OSS_CHATTERMATE_FIREBASE_APP_ID:-}
+      VITE_FIREBASE_AUTH_DOMAIN: ${KLM_OSS_CHATTERMATE_FIREBASE_AUTH_DOMAIN:-}
+      VITE_FIREBASE_MEASUREMENT_ID: ${KLM_OSS_CHATTERMATE_FIREBASE_MEASUREMENT_ID:-}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${KLM_OSS_CHATTERMATE_FIREBASE_MESSAGING_SENDER_ID:-}
+      VITE_FIREBASE_PROJECT_ID: ${KLM_OSS_CHATTERMATE_FIREBASE_PROJECT_ID:-}
+      VITE_FIREBASE_STORAGE_BUCKET: ${KLM_OSS_CHATTERMATE_FIREBASE_STORAGE_BUCKET:-}
+      VITE_FIREBASE_VAPID_KEY: ${KLM_OSS_CHATTERMATE_FIREBASE_VAPID_KEY:-}
+      VITE_GOOGLE_FONTS_API_KEY: ${KLM_OSS_CHATTERMATE_GOOGLE_FONTS_API_KEY:-}
+      VITE_SHOPIFY_API_KEY: ${KLM_OSS_CHATTERMATE_SHOPIFY_API_KEY:-}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test: [CMD-SHELL, wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/healthz]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: chattermate
+      com.klm.upstream.version: 1.0.14
+
+  chattermate-gateway:
+    image: klm/chattermate-gateway:1.0.14-local
+    build:
+      context: .
+      dockerfile: docker/oss/chattermate/Dockerfile.gateway
+    profiles: [automation]
+    restart: unless-stopped
+    depends_on:
+      chattermate-api:
+        condition: service_healthy
+      chattermate-frontend:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+    ports:
+      - target: 8080
+        published: ${KLM_OSS_CHATTERMATE_PORT:-3300}
+        host_ip: 127.0.0.1
+        protocol: tcp
+    networks:
+      - klm-oss-local
+      - klm-oss-loopback
+    healthcheck:
+      test: [CMD-SHELL, wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/healthz]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: chattermate
+      com.klm.upstream.version: 1.0.14
+      com.klm.network-policy: loopback-gateway-no-secrets
+
+volumes:
+  chattermate-config:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: chattermate-runtime-config
+  chattermate-model-cache:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: chattermate-model-cache
+  chattermate-postgres-data:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: chattermate-postgres
+  chattermate-redis-data:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: chattermate-redis
+  chattermate-temp:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: chattermate-temp
+  chattermate-uploads:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: chattermate-uploads
+
+networks:
+  # Existing repository networks; retain these definitions when wiring. The
+  # name overrides exist only to permit collision-free disposable smoke tests.
+  klm-oss-local:
+    name: ${KLM_OSS_CHATTERMATE_INTERNAL_NETWORK:-klm-oss-local}
+    internal: true
+    attachable: false
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.network-policy: no-external-egress
+  klm-oss-loopback:
+    name: ${KLM_OSS_CHATTERMATE_LOOPBACK_NETWORK:-klm-oss-loopback}
+    internal: false
+    attachable: false
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.network-policy: host-loopback-publication-only
+  # API/worker egress is required for BYO model APIs, channels, crawling, and
+  # lazy model acquisition. It never publishes an inbound host port.
+  chattermate-egress:
+    name: ${KLM_OSS_CHATTERMATE_EGRESS_NETWORK:-klm-oss-chattermate-egress}
+    internal: false
+    attachable: false
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.network-policy: chattermate-outbound-no-publication

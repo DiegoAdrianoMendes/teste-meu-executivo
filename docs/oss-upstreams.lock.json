@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-16",
+  "policy": "Materialize only the pinned public source tree. Proprietary paths stay outside the worktree, submodules are never initialized, and license/provenance evidence must match the pinned Git objects before reuse.",
+  "sources": [
+    {
+      "name": "chatwoot",
+      "repository": "https://github.com/chatwoot/chatwoot.git",
+      "ref": "v4.15.1",
+      "refType": "tag",
+      "refObject": "ed272ae09846a89849f75fe33b094a5cba59e753",
+      "refObjectType": "tag",
+      "commit": "97bb8ecd326299c46eacea74863976427c96fe94",
+      "checkout": {
+        "mode": "sparse-excluding-proprietary",
+        "excludePaths": [
+          "enterprise"
+        ]
+      },
+      "submodules": {
+        "policy": "do-not-initialize",
+        "expectedGitlinks": []
+      },
+      "license": {
+        "status": "verified-file",
+        "conclusion": "MIT Expat outside enterprise/; enterprise/ is governed by its separate license and is excluded from the worktree.",
+        "evidence": [
+          {
+            "kind": "license-text",
+            "path": "LICENSE",
+            "gitBlob": "8f80f35beac23087f29ca3bfa9a38f065074f3d0"
+          }
+        ]
+      },
+      "sentinelFiles": [
+        "README.md",
+        "VERSION_CW",
+        "package.json",
+        "app/models/conversation.rb"
+      ],
+      "reuseMode": "full OSS sidecar plus minimal KLM fork and API/webhook adapter; enterprise/ remains excluded"
+    },
+    {
+      "name": "chattermate",
+      "repository": "https://github.com/chattermate/chattermate.chat.git",
+      "ref": "v1.0.14",
+      "refType": "tag",
+      "refObject": "9770df5b4d4909084a3b3a00ff2404d25724de90",
+      "refObjectType": "commit",
+      "commit": "9770df5b4d4909084a3b3a00ff2404d25724de90",
+      "checkout": {
+        "mode": "sparse-excluding-proprietary",
+        "excludePaths": [
+          "backend/app/enterprise",
+          "frontend/src/modules/enterprise"
+        ]
+      },
+      "submodules": {
+        "policy": "do-not-initialize",
+        "expectedGitlinks": [
+          "backend/app/enterprise",
+          "frontend/src/modules/enterprise"
+        ]
+      },
+      "license": {
+        "status": "verified-file",
+        "conclusion": "Apache-2.0 for the public superproject; the two private enterprise gitlinks are excluded and never initialized.",
+        "evidence": [
+          {
+            "kind": "license-text",
+            "path": "LICENSE",
+            "gitBlob": "d645695673349e3947e8e5ae42332d0ac3164cd7"
+          },
+          {
+            "kind": "notice",
+            "path": "NOTICE",
+            "gitBlob": "e005d0ab88b998905cae1d2388ed5a9e1a128ef1"
+          }
+        ]
+      },
+      "sentinelFiles": [
+        "README.md",
+        "NOTICE",
+        "backend/app/main.py",
+        "frontend/package.json"
+      ],
+      "reuseMode": "selective public Python module and workflow UI adaptation with Apache-2.0 LICENSE and NOTICE preservation"
+    },
+    {
+      "name": "bottlecrm",
+      "repository": "https://github.com/MicroPyramid/Django-CRM.git",
+      "ref": "0.46",
+      "refType": "tag",
+      "refObject": "3ab79d75ece005a414d9d3ef729b7240545d1b41",
+      "refObjectType": "commit",
+      "commit": "3ab79d75ece005a414d9d3ef729b7240545d1b41",
+      "checkout": {
+        "mode": "full",
+        "excludePaths": []
+      },
+      "submodules": {
+        "policy": "do-not-initialize",
+        "expectedGitlinks": []
+      },
+      "license": {
+        "status": "verified-file",
+        "conclusion": "MIT.",
+        "evidence": [
+          {
+            "kind": "license-text",
+            "path": "LICENSE",
+            "gitBlob": "64098aff387a3749b3d34a300db46e4b28b5dfc7"
+          }
+        ]
+      },
+      "sentinelFiles": [
+        "README.md",
+        "RLS_SETUP.md",
+        "backend/manage.py",
+        "mcp_server/src/bcrm_mcp/server.py"
+      ],
+      "reuseMode": "MCP server base, RLS, audit, deduplication and CRM test patterns"
+    },
+    {
+      "name": "rocketchat",
+      "repository": "https://github.com/RocketChat/Rocket.Chat.git",
+      "ref": "8.6.1",
+      "refType": "tag",
+      "refObject": "2c9d21432b6cfa9bac40a231ad38159e0a7dfeb9",
+      "refObjectType": "tag",
+      "commit": "bfd782302d20cbd672c785ac8c0d072d7cc6b0db",
+      "checkout": {
+        "mode": "sparse-excluding-proprietary",
+        "excludePaths": [
+          "apps/meteor/ee",
+          "ee"
+        ]
+      },
+      "submodules": {
+        "policy": "do-not-initialize",
+        "expectedGitlinks": []
+      },
+      "license": {
+        "status": "verified-file",
+        "conclusion": "MIT Expat outside apps/meteor/ee/ and ee/; both enterprise trees are governed by a separate license and are excluded from the worktree.",
+        "evidence": [
+          {
+            "kind": "license-text",
+            "path": "LICENSE",
+            "gitBlob": "8cce70381c6686d7109204df5ec69136cadc7573"
+          }
+        ]
+      },
+      "sentinelFiles": [
+        "README.md",
+        "package.json",
+        "apps/meteor/server/main.ts",
+        "packages/apps-engine/package.json"
+      ],
+      "reuseMode": "full OSS collaboration sidecar plus private KLM Apps-Engine bridge; enterprise trees remain excluded"
+    },
+    {
+      "name": "rocket-embedded-chat",
+      "repository": "https://github.com/RocketChat/EmbeddedChat.git",
+      "ref": "v0.2.3",
+      "refType": "tag",
+      "refObject": "06a0299680394b4b03f932e300bc52e52df83f80",
+      "refObjectType": "commit",
+      "commit": "06a0299680394b4b03f932e300bc52e52df83f80",
+      "checkout": {
+        "mode": "full",
+        "excludePaths": []
+      },
+      "submodules": {
+        "policy": "do-not-initialize",
+        "expectedGitlinks": []
+      },
+      "license": {
+        "status": "package-metadata-only",
+        "conclusion": "@embeddedchat/react declares ISC in its package metadata; the repository root has no LICENSE file, so reuse remains gated to the package scope and explicit license review.",
+        "rootLicenseAbsent": true,
+        "evidence": [
+          {
+            "kind": "package-metadata",
+            "path": "packages/react/package.json",
+            "gitBlob": "95d4c59a4faaf612752bdcf9df4a43f1284dbf58"
+          }
+        ]
+      },
+      "packageMetadata": {
+        "path": "packages/react/package.json",
+        "name": "@embeddedchat/react",
+        "version": "0.2.3",
+        "license": "ISC",
+        "devReact": "^17.0.2",
+        "devReactDom": "^17.0.2",
+        "peerReact": ">=17.0.2 <19.0.0",
+        "peerReactDom": ">=17.0.2 <19.0.0"
+      },
+      "sentinelFiles": [
+        "README.md",
+        "packages/api/src/EmbeddedChatApi.ts",
+        "packages/react/package.json",
+        "packages/react/src/views/EmbeddedChat.js"
+      ],
+      "reuseMode": "compatibility spike only; React 17/18 isolated microfrontend if license review clears it; React 19 is outside the declared peer range"
+    }
+  ]
+}

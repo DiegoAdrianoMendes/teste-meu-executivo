@@ -1,0 +1,19 @@
+# syntax=docker/dockerfile:1.7
+
+FROM nginx:1.29.5-alpine
+
+ARG BOTTLECRM_COMMIT=3ab79d75ece005a414d9d3ef729b7240545d1b41
+
+LABEL org.opencontainers.image.title="BottleCRM KLM local same-origin gateway" \
+      org.opencontainers.image.revision="${BOTTLECRM_COMMIT}" \
+      org.opencontainers.image.source="https://github.com/MicroPyramid/BottleCRM" \
+      org.opencontainers.image.licenses="MIT"
+
+RUN rm -rf /etc/nginx/conf.d/*
+COPY docker/oss/bottlecrm/gateway/nginx.conf /etc/nginx/nginx.conf
+
+USER 101:101
+
+EXPOSE 8080
+
+CMD ["nginx", "-g", "daemon off;"]

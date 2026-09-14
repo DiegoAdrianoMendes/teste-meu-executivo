@@ -1,0 +1,7 @@
+**
+
+!docker/
+!docker/oss/
+!docker/oss/chattermate/
+!docker/oss/chattermate/gateway/
+!docker/oss/chattermate/gateway/nginx.conf

@@ -1,0 +1,14 @@
+# Ignore específico da imagem frontend (BuildKit prioriza sobre o .dockerignore raiz)
+.git
+.venv
+.vendor
+.local
+tests
+docs
+app
+alembic
+scripts
+frontend/node_modules
+frontend/dist
+frontend/.vite
+**/__pycache__

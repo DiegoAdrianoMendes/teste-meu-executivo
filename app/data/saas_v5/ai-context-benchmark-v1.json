@@ -1,0 +1,427 @@
+{
+  "schemaVersion": "1.0",
+  "datasetVersion": "klm-health-denials-context-v1",
+  "language": "pt-BR",
+  "syntheticOnly": true,
+  "containsRealClientData": false,
+  "purpose": "Benchmark reproduzível de compilação de contexto para negativas de plano de saúde.",
+  "generation": {
+    "seed": 20260720,
+    "temperature": 0.0,
+    "fakeModelVersion": "klm-deterministic-extractive-fake-v1",
+    "historyTurnsPerJourney": 36,
+    "cardPaddingParagraphs": 16,
+    "documentPaddingParagraphs": 4
+  },
+  "compiler": {
+    "recentWindowSize": 12,
+    "tokenBudget": 2800
+  },
+  "thresholds": {
+    "meanStructuralReduction": 0.4,
+    "lowerConfidenceStructuralReduction": 0.4,
+    "mandatoryFactCoverage": 1.0,
+    "deterministicQuality": 0.95,
+    "minimumQualityDelta": -0.02,
+    "bootstrapConfidence": 0.95,
+    "bootstrapSamples": 2000
+  },
+  "rubric": {
+    "version": "klm-context-rubric-v1",
+    "weights": {
+      "mandatoryFacts": 0.7,
+      "scopeIntegrity": 0.1,
+      "provenanceCompleteness": 0.1,
+      "latestMessagePreserved": 0.05,
+      "relevantEvidencePreserved": 0.05
+    }
+  },
+  "requiredCoverage": {
+    "subthemes": [
+      "medicamento",
+      "home_care",
+      "cirurgia",
+      "exame",
+      "tratamento"
+    ],
+    "dimensions": [
+      "objecao",
+      "documentos_completos",
+      "documentos_incompletos",
+      "urgencia_alta",
+      "urgencia_moderada"
+    ]
+  },
+  "journeys": [
+    {
+      "id": "medicamento-oncologico-urgente",
+      "workspaceId": "synthetic-workspace-01",
+      "matterId": "synthetic-matter-01",
+      "subtheme": "medicamento",
+      "dimensions": ["objecao", "documentos_completos", "urgencia_alta"],
+      "objection": "Tenho receio do custo do processo e preciso começar o tratamento agora.",
+      "card": {
+        "practice_area": "direito da saude",
+        "demand_type": "medicamento de alto custo",
+        "priority": "critical",
+        "urgency": "início em 48 horas",
+        "executive_summary": "Pessoa sintética com carcinoma pulmonar; prescrição de Pembrolizumabe 200 mg; início em 48 horas; negativa por uso fora do rol; relatório médico e negativa disponíveis.",
+        "next_action": "validar documentos e encaminhar para análise jurídica",
+        "micro_status": "triagem documental",
+        "is_blocked": false,
+        "needs_approval": true
+      },
+      "summary": "Carcinoma pulmonar. Pembrolizumabe 200 mg prescrito com início em 48 horas. Negativa por uso fora do rol. Relatório médico e negativa disponíveis. Objeção: custo do processo.",
+      "coreMessages": [
+        {"id": "m01-01", "role": "client", "content": "O plano negou o medicamento indicado pelo oncologista."},
+        {"id": "m01-02", "role": "assistant", "content": "Qual é o medicamento e quando o tratamento deve começar?"},
+        {"id": "m01-03", "role": "client", "content": "É Pembrolizumabe 200 mg e o início é em 48 horas."},
+        {"id": "m01-04", "role": "assistant", "content": "Você possui relatório médico e a negativa formal?"},
+        {"id": "m01-05", "role": "client", "content": "Sim, tenho relatório médico e negativa disponíveis."},
+        {"id": "m01-06", "role": "client", "content": "Tenho receio do custo do processo, mas não posso esperar."}
+      ],
+      "documents": [
+        {"id": "doc-01-prescricao", "title": "Prescrição sintética", "rank": 100, "relevant": true, "content": "Prescrição sintética: Pembrolizumabe 200 mg, início em 48 horas, tratamento oncológico."},
+        {"id": "doc-01-negativa", "title": "Negativa sintética", "rank": 95, "relevant": true, "content": "Negativa sintética do plano: cobertura recusada por uso fora do rol."},
+        {"id": "doc-01-carteirinha", "title": "Carteirinha sintética", "rank": 20, "relevant": false, "content": "Registro administrativo sem informação clínica decisiva."},
+        {"id": "doc-01-boleto", "title": "Boleto sintético", "rank": 10, "relevant": false, "content": "Comprovante sintético de mensalidade sem informação sobre a urgência."},
+        {"id": "doc-01-antigo", "title": "Exame antigo sintético", "rank": 5, "relevant": false, "content": "Exame sintético antigo sem relação com a prescrição atual."}
+      ],
+      "mandatoryFacts": ["carcinoma pulmonar", "Pembrolizumabe 200 mg", "início em 48 horas", "negativa por uso fora do rol", "relatório médico e negativa disponíveis"],
+      "latestMessageId": "m01-06"
+    },
+    {
+      "id": "medicamento-doenca-rara-documento-pendente",
+      "workspaceId": "synthetic-workspace-02",
+      "matterId": "synthetic-matter-02",
+      "subtheme": "medicamento",
+      "dimensions": ["objecao", "documentos_incompletos", "urgencia_moderada"],
+      "objection": "Não consigo pagar entrada agora.",
+      "card": {
+        "practice_area": "direito da saude",
+        "demand_type": "medicamento de alto custo",
+        "priority": "high",
+        "urgency": "próxima dose em 10 dias",
+        "executive_summary": "Pessoa sintética com atrofia muscular espinhal; Nusinersen 12 mg; próxima dose em 10 dias; negativa por diretriz de utilização; falta cópia integral do contrato.",
+        "next_action": "coletar contrato e submeter documentos ao jurídico",
+        "micro_status": "documento pendente",
+        "is_blocked": true,
+        "needs_approval": false
+      },
+      "summary": "Atrofia muscular espinhal. Nusinersen 12 mg. Próxima dose em 10 dias. Negativa por diretriz de utilização. Falta cópia integral do contrato. Objeção: sem entrada agora.",
+      "coreMessages": [
+        {"id": "m02-01", "role": "client", "content": "A continuidade do medicamento foi negada."},
+        {"id": "m02-02", "role": "assistant", "content": "Qual medicamento e qual a data da próxima dose?"},
+        {"id": "m02-03", "role": "client", "content": "Nusinersen 12 mg; a próxima dose é em 10 dias."},
+        {"id": "m02-04", "role": "assistant", "content": "A negativa informa o motivo e você tem o contrato?"},
+        {"id": "m02-05", "role": "client", "content": "Alega diretriz de utilização; ainda não encontrei o contrato completo."},
+        {"id": "m02-06", "role": "client", "content": "Não consigo pagar entrada agora."}
+      ],
+      "documents": [
+        {"id": "doc-02-relatorio", "title": "Relatório sintético", "rank": 100, "relevant": true, "content": "Relatório sintético: atrofia muscular espinhal e continuidade de Nusinersen 12 mg."},
+        {"id": "doc-02-negativa", "title": "Negativa sintética", "rank": 90, "relevant": true, "content": "Negativa sintética fundamentada em diretriz de utilização."},
+        {"id": "doc-02-protocolo", "title": "Protocolo sintético", "rank": 35, "relevant": false, "content": "Número administrativo sintético sem o contrato integral."},
+        {"id": "doc-02-email", "title": "E-mail sintético", "rank": 15, "relevant": false, "content": "Mensagem administrativa genérica do plano."},
+        {"id": "doc-02-recibo", "title": "Recibo sintético", "rank": 5, "relevant": false, "content": "Recibo sem informação clínica relevante."}
+      ],
+      "mandatoryFacts": ["atrofia muscular espinhal", "Nusinersen 12 mg", "próxima dose em 10 dias", "negativa por diretriz de utilização", "falta cópia integral do contrato"],
+      "latestMessageId": "m02-06"
+    },
+    {
+      "id": "home-care-desospitalizacao-urgente",
+      "workspaceId": "synthetic-workspace-03",
+      "matterId": "synthetic-matter-03",
+      "subtheme": "home_care",
+      "dimensions": ["documentos_completos", "urgencia_alta"],
+      "objection": "O hospital quer liberar antes de o plano montar a estrutura.",
+      "card": {
+        "practice_area": "direito da saude",
+        "demand_type": "home care",
+        "priority": "critical",
+        "urgency": "alta prevista para amanhã",
+        "executive_summary": "Pessoa sintética com alta prevista para amanhã; enfermagem 24 horas; ventilação não invasiva; negativa por ausência de cobertura domiciliar; plano de desospitalização disponível.",
+        "next_action": "análise jurídica imediata e preservação da alta segura",
+        "micro_status": "pronto para jurídico",
+        "is_blocked": false,
+        "needs_approval": true
+      },
+      "summary": "Alta prevista para amanhã. Enfermagem 24 horas e ventilação não invasiva. Negativa por ausência de cobertura domiciliar. Plano de desospitalização disponível.",
+      "coreMessages": [
+        {"id": "m03-01", "role": "client", "content": "O hospital informou alta para amanhã."},
+        {"id": "m03-02", "role": "assistant", "content": "Quais cuidados foram prescritos para casa?"},
+        {"id": "m03-03", "role": "client", "content": "Enfermagem 24 horas e ventilação não invasiva."},
+        {"id": "m03-04", "role": "assistant", "content": "O plano respondeu por escrito?"},
+        {"id": "m03-05", "role": "client", "content": "Negou por ausência de cobertura domiciliar; tenho o plano de desospitalização."},
+        {"id": "m03-06", "role": "client", "content": "O hospital quer liberar antes de montarem a estrutura."}
+      ],
+      "documents": [
+        {"id": "doc-03-plano", "title": "Plano de desospitalização sintético", "rank": 100, "relevant": true, "content": "Plano sintético: enfermagem 24 horas e ventilação não invasiva antes da alta."},
+        {"id": "doc-03-negativa", "title": "Negativa sintética", "rank": 95, "relevant": true, "content": "Negativa sintética por ausência de cobertura domiciliar."},
+        {"id": "doc-03-censo", "title": "Censo hospitalar sintético", "rank": 20, "relevant": false, "content": "Registro administrativo de internação."},
+        {"id": "doc-03-visita", "title": "Relato de visita sintético", "rank": 10, "relevant": false, "content": "Relato sem prescrição clínica."},
+        {"id": "doc-03-recibo", "title": "Recibo sintético", "rank": 5, "relevant": false, "content": "Recibo administrativo sem pertinência clínica."}
+      ],
+      "mandatoryFacts": ["alta prevista para amanhã", "enfermagem 24 horas", "ventilação não invasiva", "negativa por ausência de cobertura domiciliar", "plano de desospitalização disponível"],
+      "latestMessageId": "m03-06"
+    },
+    {
+      "id": "home-care-reducao-de-carga",
+      "workspaceId": "synthetic-workspace-04",
+      "matterId": "synthetic-matter-04",
+      "subtheme": "home_care",
+      "dimensions": ["objecao", "documentos_incompletos", "urgencia_moderada"],
+      "objection": "O plano diz que familiar pode substituir técnico de enfermagem.",
+      "card": {
+        "practice_area": "direito da saude",
+        "demand_type": "home care",
+        "priority": "high",
+        "urgency": "redução prevista em 7 dias",
+        "executive_summary": "Redução de 12 para 6 horas de enfermagem; sonda enteral; redução prevista em 7 dias; justificativa baseada em cuidador familiar; falta relatório médico atualizado.",
+        "next_action": "solicitar relatório atualizado e histórico de autorizações",
+        "micro_status": "aguardando relatório",
+        "is_blocked": true,
+        "needs_approval": false
+      },
+      "summary": "Redução de 12 para 6 horas de enfermagem. Sonda enteral. Redução prevista em 7 dias. Justificativa baseada em cuidador familiar. Falta relatório médico atualizado.",
+      "coreMessages": [
+        {"id": "m04-01", "role": "client", "content": "O plano vai reduzir a enfermagem do home care."},
+        {"id": "m04-02", "role": "assistant", "content": "Qual é a redução e quando começa?"},
+        {"id": "m04-03", "role": "client", "content": "De 12 para 6 horas, em 7 dias; a pessoa usa sonda enteral."},
+        {"id": "m04-04", "role": "assistant", "content": "Há relatório médico atualizado?"},
+        {"id": "m04-05", "role": "client", "content": "Ainda não; o plano diz que familiar substitui técnico."},
+        {"id": "m04-06", "role": "client", "content": "Preciso saber qual documento pedir ao médico."}
+      ],
+      "documents": [
+        {"id": "doc-04-autorizacao", "title": "Autorização anterior sintética", "rank": 100, "relevant": true, "content": "Autorização sintética anterior de 12 horas de enfermagem."},
+        {"id": "doc-04-comunicado", "title": "Comunicado sintético", "rank": 90, "relevant": true, "content": "Comunicado sintético de redução para 6 horas em 7 dias."},
+        {"id": "doc-04-foto", "title": "Imagem sintética", "rank": 20, "relevant": false, "content": "Descrição genérica de equipamento, sem prescrição."},
+        {"id": "doc-04-boleto", "title": "Boleto sintético", "rank": 10, "relevant": false, "content": "Boleto administrativo sem conteúdo clínico."},
+        {"id": "doc-04-email", "title": "E-mail sintético", "rank": 5, "relevant": false, "content": "E-mail genérico sem relatório médico atualizado."}
+      ],
+      "mandatoryFacts": ["redução de 12 para 6 horas de enfermagem", "sonda enteral", "redução prevista em 7 dias", "justificativa baseada em cuidador familiar", "falta relatório médico atualizado"],
+      "latestMessageId": "m04-06"
+    },
+    {
+      "id": "cirurgia-oncologica-com-material",
+      "workspaceId": "synthetic-workspace-05",
+      "matterId": "synthetic-matter-05",
+      "subtheme": "cirurgia",
+      "dimensions": ["objecao", "documentos_completos", "urgencia_alta"],
+      "objection": "O plano oferece técnica diferente da prescrita.",
+      "card": {
+        "practice_area": "direito da saude",
+        "demand_type": "cirurgia",
+        "priority": "critical",
+        "urgency": "janela cirúrgica de 5 dias",
+        "executive_summary": "Cirurgia oncológica abdominal; material OPME específico; janela cirúrgica de 5 dias; negativa por divergência de técnica; pedido médico e orçamento disponíveis.",
+        "next_action": "revisão jurídica de urgência e validação do OPME",
+        "micro_status": "pronto para jurídico",
+        "is_blocked": false,
+        "needs_approval": true
+      },
+      "summary": "Cirurgia oncológica abdominal. Material OPME específico. Janela cirúrgica de 5 dias. Negativa por divergência de técnica. Pedido médico e orçamento disponíveis.",
+      "coreMessages": [
+        {"id": "m05-01", "role": "client", "content": "A cirurgia foi autorizada sem o material indicado."},
+        {"id": "m05-02", "role": "assistant", "content": "Qual é a cirurgia e qual o prazo médico?"},
+        {"id": "m05-03", "role": "client", "content": "Cirurgia oncológica abdominal, com janela de 5 dias."},
+        {"id": "m05-04", "role": "assistant", "content": "Há indicação do OPME e orçamento?"},
+        {"id": "m05-05", "role": "client", "content": "Sim, pedido médico e orçamento estão disponíveis."},
+        {"id": "m05-06", "role": "client", "content": "O plano oferece técnica diferente da prescrita."}
+      ],
+      "documents": [
+        {"id": "doc-05-pedido", "title": "Pedido cirúrgico sintético", "rank": 100, "relevant": true, "content": "Pedido sintético de cirurgia oncológica abdominal com OPME específico."},
+        {"id": "doc-05-negativa", "title": "Negativa sintética", "rank": 95, "relevant": true, "content": "Negativa sintética por divergência de técnica e material."},
+        {"id": "doc-05-orcamento", "title": "Orçamento sintético", "rank": 70, "relevant": true, "content": "Orçamento sintético do material OPME indicado."},
+        {"id": "doc-05-guia", "title": "Guia antiga sintética", "rank": 10, "relevant": false, "content": "Guia antiga sem relação com a cirurgia atual."},
+        {"id": "doc-05-carteira", "title": "Carteirinha sintética", "rank": 5, "relevant": false, "content": "Documento administrativo sem informação clínica."}
+      ],
+      "mandatoryFacts": ["cirurgia oncológica abdominal", "material OPME específico", "janela cirúrgica de 5 dias", "negativa por divergência de técnica", "pedido médico e orçamento disponíveis"],
+      "latestMessageId": "m05-06"
+    },
+    {
+      "id": "cirurgia-reparadora-pos-bariatrica",
+      "workspaceId": "synthetic-workspace-06",
+      "matterId": "synthetic-matter-06",
+      "subtheme": "cirurgia",
+      "dimensions": ["objecao", "documentos_incompletos", "urgencia_moderada"],
+      "objection": "O plano classificou tudo como estética.",
+      "card": {
+        "practice_area": "direito da saude",
+        "demand_type": "cirurgia reparadora",
+        "priority": "medium",
+        "urgency": "infecções recorrentes sem data cirúrgica",
+        "executive_summary": "Cirurgia reparadora pós-bariátrica; dermatites e infecções recorrentes; negativa por finalidade estética; fotografias clínicas disponíveis; falta laudo funcional detalhado.",
+        "next_action": "obter laudo funcional e consolidar histórico clínico",
+        "micro_status": "documento pendente",
+        "is_blocked": true,
+        "needs_approval": false
+      },
+      "summary": "Cirurgia reparadora pós-bariátrica. Dermatites e infecções recorrentes. Negativa por finalidade estética. Fotografias clínicas disponíveis. Falta laudo funcional detalhado.",
+      "coreMessages": [
+        {"id": "m06-01", "role": "client", "content": "O plano negou as cirurgias reparadoras."},
+        {"id": "m06-02", "role": "assistant", "content": "A indicação descreve impacto funcional?"},
+        {"id": "m06-03", "role": "client", "content": "Tenho dermatites e infecções recorrentes após a bariátrica."},
+        {"id": "m06-04", "role": "assistant", "content": "Há fotos e laudo funcional detalhado?"},
+        {"id": "m06-05", "role": "client", "content": "Tenho fotografias clínicas, mas o laudo ainda é simples."},
+        {"id": "m06-06", "role": "client", "content": "O plano classificou tudo como estética."}
+      ],
+      "documents": [
+        {"id": "doc-06-pedido", "title": "Pedido sintético", "rank": 100, "relevant": true, "content": "Pedido sintético de cirurgia reparadora pós-bariátrica."},
+        {"id": "doc-06-negativa", "title": "Negativa sintética", "rank": 95, "relevant": true, "content": "Negativa sintética por alegada finalidade estética."},
+        {"id": "doc-06-fotos", "title": "Registro fotográfico sintético", "rank": 60, "relevant": true, "content": "Descrição sintética de fotografias clínicas disponíveis."},
+        {"id": "doc-06-boleto", "title": "Boleto sintético", "rank": 10, "relevant": false, "content": "Boleto sem conteúdo funcional."},
+        {"id": "doc-06-guia", "title": "Guia antiga sintética", "rank": 5, "relevant": false, "content": "Guia sem relação com a indicação reparadora atual."}
+      ],
+      "mandatoryFacts": ["cirurgia reparadora pós-bariátrica", "dermatites e infecções recorrentes", "negativa por finalidade estética", "fotografias clínicas disponíveis", "falta laudo funcional detalhado"],
+      "latestMessageId": "m06-06"
+    },
+    {
+      "id": "exame-pet-ct-oncologico",
+      "workspaceId": "synthetic-workspace-07",
+      "matterId": "synthetic-matter-07",
+      "subtheme": "exame",
+      "dimensions": ["documentos_completos", "urgencia_alta"],
+      "objection": "A consulta de retorno depende do resultado.",
+      "card": {
+        "practice_area": "direito da saude",
+        "demand_type": "exame",
+        "priority": "critical",
+        "urgency": "retorno oncológico em 72 horas",
+        "executive_summary": "PET-CT com FDG; estadiamento oncológico; retorno em 72 horas; negativa por ausência no rol; pedido médico e protocolo disponíveis.",
+        "next_action": "encaminhar ao jurídico com prova da janela clínica",
+        "micro_status": "pronto para jurídico",
+        "is_blocked": false,
+        "needs_approval": true
+      },
+      "summary": "PET-CT com FDG para estadiamento oncológico. Retorno em 72 horas. Negativa por ausência no rol. Pedido médico e protocolo disponíveis.",
+      "coreMessages": [
+        {"id": "m07-01", "role": "client", "content": "O PET-CT foi negado e tenho retorno em poucos dias."},
+        {"id": "m07-02", "role": "assistant", "content": "Qual o objetivo do exame e a data do retorno?"},
+        {"id": "m07-03", "role": "client", "content": "Estadiamento oncológico; retorno em 72 horas."},
+        {"id": "m07-04", "role": "assistant", "content": "Você tem pedido e protocolo da negativa?"},
+        {"id": "m07-05", "role": "client", "content": "Sim, pedido médico e protocolo disponíveis."},
+        {"id": "m07-06", "role": "client", "content": "A consulta de retorno depende do resultado."}
+      ],
+      "documents": [
+        {"id": "doc-07-pedido", "title": "Pedido de PET-CT sintético", "rank": 100, "relevant": true, "content": "Pedido sintético de PET-CT com FDG para estadiamento oncológico."},
+        {"id": "doc-07-negativa", "title": "Negativa sintética", "rank": 95, "relevant": true, "content": "Negativa sintética por ausência no rol."},
+        {"id": "doc-07-agenda", "title": "Agenda sintética", "rank": 65, "relevant": true, "content": "Retorno oncológico sintético agendado em 72 horas."},
+        {"id": "doc-07-exame-antigo", "title": "Exame antigo sintético", "rank": 10, "relevant": false, "content": "Exame antigo sem o estadiamento atual."},
+        {"id": "doc-07-boleto", "title": "Boleto sintético", "rank": 5, "relevant": false, "content": "Boleto administrativo sem pertinência clínica."}
+      ],
+      "mandatoryFacts": ["PET-CT com FDG", "estadiamento oncológico", "retorno em 72 horas", "negativa por ausência no rol", "pedido médico e protocolo disponíveis"],
+      "latestMessageId": "m07-06"
+    },
+    {
+      "id": "exame-painel-genetico",
+      "workspaceId": "synthetic-workspace-08",
+      "matterId": "synthetic-matter-08",
+      "subtheme": "exame",
+      "dimensions": ["objecao", "documentos_incompletos", "urgencia_moderada"],
+      "objection": "O laboratório só mantém o orçamento por 15 dias.",
+      "card": {
+        "practice_area": "direito da saude",
+        "demand_type": "exame",
+        "priority": "medium",
+        "urgency": "orçamento válido por 15 dias",
+        "executive_summary": "Painel genético de cardiomiopatias; definição terapêutica; orçamento válido por 15 dias; negativa por caráter experimental; falta segunda justificativa médica.",
+        "next_action": "solicitar justificativa médica complementar",
+        "micro_status": "documento pendente",
+        "is_blocked": true,
+        "needs_approval": false
+      },
+      "summary": "Painel genético de cardiomiopatias para definição terapêutica. Orçamento válido por 15 dias. Negativa por caráter experimental. Falta segunda justificativa médica.",
+      "coreMessages": [
+        {"id": "m08-01", "role": "client", "content": "O painel genético solicitado foi negado."},
+        {"id": "m08-02", "role": "assistant", "content": "Qual a finalidade clínica indicada?"},
+        {"id": "m08-03", "role": "client", "content": "Definir o tratamento de uma cardiomiopatia."},
+        {"id": "m08-04", "role": "assistant", "content": "Qual o motivo da negativa e quais documentos existem?"},
+        {"id": "m08-05", "role": "client", "content": "Alegaram caráter experimental; falta uma justificativa complementar."},
+        {"id": "m08-06", "role": "client", "content": "O laboratório só mantém o orçamento por 15 dias."}
+      ],
+      "documents": [
+        {"id": "doc-08-pedido", "title": "Pedido sintético", "rank": 100, "relevant": true, "content": "Pedido sintético de painel genético de cardiomiopatias."},
+        {"id": "doc-08-negativa", "title": "Negativa sintética", "rank": 95, "relevant": true, "content": "Negativa sintética por alegado caráter experimental."},
+        {"id": "doc-08-orcamento", "title": "Orçamento sintético", "rank": 70, "relevant": true, "content": "Orçamento sintético válido por 15 dias."},
+        {"id": "doc-08-email", "title": "E-mail sintético", "rank": 10, "relevant": false, "content": "E-mail administrativo sem justificativa médica."},
+        {"id": "doc-08-carteira", "title": "Carteirinha sintética", "rank": 5, "relevant": false, "content": "Documento administrativo sem pertinência clínica."}
+      ],
+      "mandatoryFacts": ["painel genético de cardiomiopatias", "definição terapêutica", "orçamento válido por 15 dias", "negativa por caráter experimental", "falta segunda justificativa médica"],
+      "latestMessageId": "m08-06"
+    },
+    {
+      "id": "tratamento-aba-intensivo",
+      "workspaceId": "synthetic-workspace-09",
+      "matterId": "synthetic-matter-09",
+      "subtheme": "tratamento",
+      "dimensions": ["objecao", "documentos_completos", "urgencia_moderada"],
+      "objection": "O plano oferece clínica distante e carga menor.",
+      "card": {
+        "practice_area": "direito da saude",
+        "demand_type": "tratamento multidisciplinar",
+        "priority": "high",
+        "urgency": "interrupção em 5 dias",
+        "executive_summary": "Terapia ABA 20 horas semanais; equipe multidisciplinar; interrupção em 5 dias; negativa parcial de carga horária; plano terapêutico disponível.",
+        "next_action": "comparar autorização com plano terapêutico e enviar ao jurídico",
+        "micro_status": "triagem jurídica",
+        "is_blocked": false,
+        "needs_approval": true
+      },
+      "summary": "Terapia ABA 20 horas semanais com equipe multidisciplinar. Interrupção em 5 dias. Negativa parcial de carga horária. Plano terapêutico disponível.",
+      "coreMessages": [
+        {"id": "m09-01", "role": "client", "content": "O plano reduziu as horas da terapia ABA."},
+        {"id": "m09-02", "role": "assistant", "content": "Qual a carga prescrita e quando ocorre a interrupção?"},
+        {"id": "m09-03", "role": "client", "content": "São 20 horas semanais; a interrupção ocorre em 5 dias."},
+        {"id": "m09-04", "role": "assistant", "content": "O plano terapêutico está disponível?"},
+        {"id": "m09-05", "role": "client", "content": "Sim, com a equipe multidisciplinar e a carga detalhada."},
+        {"id": "m09-06", "role": "client", "content": "O plano oferece clínica distante e carga menor."}
+      ],
+      "documents": [
+        {"id": "doc-09-plano", "title": "Plano terapêutico sintético", "rank": 100, "relevant": true, "content": "Plano sintético de terapia ABA 20 horas semanais e equipe multidisciplinar."},
+        {"id": "doc-09-negativa", "title": "Negativa parcial sintética", "rank": 95, "relevant": true, "content": "Autorização sintética com carga horária inferior à prescrita."},
+        {"id": "doc-09-agenda", "title": "Agenda terapêutica sintética", "rank": 50, "relevant": true, "content": "Agenda sintética demonstra interrupção em 5 dias."},
+        {"id": "doc-09-boleto", "title": "Boleto sintético", "rank": 10, "relevant": false, "content": "Boleto sem dados terapêuticos."},
+        {"id": "doc-09-email", "title": "E-mail sintético", "rank": 5, "relevant": false, "content": "E-mail administrativo genérico."}
+      ],
+      "mandatoryFacts": ["terapia ABA 20 horas semanais", "equipe multidisciplinar", "interrupção em 5 dias", "negativa parcial de carga horária", "plano terapêutico disponível"],
+      "latestMessageId": "m09-06"
+    },
+    {
+      "id": "tratamento-radioterapia-especializada",
+      "workspaceId": "synthetic-workspace-10",
+      "matterId": "synthetic-matter-10",
+      "subtheme": "tratamento",
+      "dimensions": ["objecao", "documentos_incompletos", "urgencia_alta"],
+      "objection": "Não há prestador credenciado com a técnica indicada.",
+      "card": {
+        "practice_area": "direito da saude",
+        "demand_type": "tratamento oncológico",
+        "priority": "critical",
+        "urgency": "início em 4 dias",
+        "executive_summary": "Radioterapia IMRT; tumor de cabeça e pescoço; início em 4 dias; negativa por ausência de prestador credenciado; falta orçamento de prestador particular.",
+        "next_action": "obter orçamento e prova da indisponibilidade da rede",
+        "micro_status": "documento pendente urgente",
+        "is_blocked": true,
+        "needs_approval": true
+      },
+      "summary": "Radioterapia IMRT para tumor de cabeça e pescoço. Início em 4 dias. Negativa por ausência de prestador credenciado. Falta orçamento de prestador particular.",
+      "coreMessages": [
+        {"id": "m10-01", "role": "client", "content": "O plano não encontrou clínica para a radioterapia indicada."},
+        {"id": "m10-02", "role": "assistant", "content": "Qual técnica foi prescrita e quando deve começar?"},
+        {"id": "m10-03", "role": "client", "content": "Radioterapia IMRT, com início em 4 dias."},
+        {"id": "m10-04", "role": "assistant", "content": "Há negativa formal e orçamento particular?"},
+        {"id": "m10-05", "role": "client", "content": "A negativa menciona falta de prestador; ainda não tenho orçamento."},
+        {"id": "m10-06", "role": "client", "content": "Não há prestador credenciado com a técnica indicada."}
+      ],
+      "documents": [
+        {"id": "doc-10-pedido", "title": "Pedido de radioterapia sintético", "rank": 100, "relevant": true, "content": "Pedido sintético de radioterapia IMRT para tumor de cabeça e pescoço."},
+        {"id": "doc-10-negativa", "title": "Negativa sintética", "rank": 95, "relevant": true, "content": "Negativa sintética por ausência de prestador credenciado."},
+        {"id": "doc-10-rede", "title": "Busca de rede sintética", "rank": 70, "relevant": true, "content": "Busca sintética sem prestador disponível para a técnica indicada."},
+        {"id": "doc-10-email", "title": "E-mail sintético", "rank": 10, "relevant": false, "content": "E-mail administrativo sem orçamento particular."},
+        {"id": "doc-10-boleto", "title": "Boleto sintético", "rank": 5, "relevant": false, "content": "Boleto sem informação sobre a rede."}
+      ],
+      "mandatoryFacts": ["radioterapia IMRT", "tumor de cabeça e pescoço", "início em 4 dias", "negativa por ausência de prestador credenciado", "falta orçamento de prestador particular"],
+      "latestMessageId": "m10-06"
+    }
+  ]
+}

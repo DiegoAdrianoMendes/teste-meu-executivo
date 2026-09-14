@@ -1,0 +1,17 @@
+**
+
+!.vendor/
+!.vendor/upstreams/
+!.vendor/upstreams/chattermate/
+!.vendor/upstreams/chattermate/backend/
+!.vendor/upstreams/chattermate/backend/**
+.vendor/upstreams/chattermate/backend/app/enterprise
+.vendor/upstreams/chattermate/backend/app/enterprise/**
+
+!docker/
+!docker/oss/
+!docker/oss/chattermate/
+!docker/oss/chattermate/backend/
+!docker/oss/chattermate/backend/entrypoint.sh
+!docker/oss/chattermate/backend/local-runtime.patch
+!docker/oss/chattermate/backend/runtime_preflight.py

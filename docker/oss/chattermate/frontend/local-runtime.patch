@@ -1,0 +1,243 @@
+diff --git a/src/config/api.ts b/src/config/api.ts
+--- a/src/config/api.ts
++++ b/src/config/api.ts
+@@ -21,17 +21,15 @@ limitations under the License.
+ 
+ // API URLs - Dynamic functions..
+ export function getApiUrl(): string {
+-  return (
+-    window.APP_CONFIG?.API_URL || import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+-  )
++  return window.APP_CONFIG?.API_URL || `${window.location.origin}/api/v1`
+ }
+ 
+ export function getWsUrl(): string {
+-  return window.APP_CONFIG?.WS_URL || import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
++  return window.APP_CONFIG?.WS_URL || window.location.origin
+ }
+ 
+ export function getWidgetUrl(): string {
+-  return window.APP_CONFIG?.WIDGET_URL || import.meta.env.VITE_WIDGET_URL || 'http://localhost:8000'
++  return window.APP_CONFIG?.WIDGET_URL || window.location.origin
+ }
+ 
+ // Razorpay Checkout - Dynamic function
+diff --git a/src/services/socket.ts b/src/services/socket.ts
+--- a/src/services/socket.ts
++++ b/src/services/socket.ts
+@@ -17,6 +17,7 @@ limitations under the License.
+ import { io, Socket } from 'socket.io-client'
+ import { ref } from 'vue'
+ import emitter from '@/utils/emitter'
++import { getWsUrl } from '@/config/api'
+ 
+ // Utility function to set cookies
+ function setCookie(name: string, value: string, maxAge: number = 1800) {
+@@ -37,7 +38,7 @@ class SocketService {
+   connect(namespace: string = '/agent') {
+     if (this.socket?.connected) return
+ 
+-    const apiUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
++    const apiUrl = getWsUrl()
+     this.socket = io(apiUrl + namespace, {
+       transports: ['websocket', 'polling'],
+       withCredentials: true,
+diff --git a/src/utils/widgetEmbed.ts b/src/utils/widgetEmbed.ts
+--- a/src/utils/widgetEmbed.ts
++++ b/src/utils/widgetEmbed.ts
+@@ -13,9 +13,7 @@ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
+ 
+-function getWidgetUrl(): string {
+-  return import.meta.env.VITE_WIDGET_URL
+-}
++import { getWidgetUrl } from '@/config/api'
+ 
+ /**
+  * Build the embeddable <script> snippet for a widget.
+diff --git a/src/components/agent/AgentDetail.vue b/src/components/agent/AgentDetail.vue
+--- a/src/components/agent/AgentDetail.vue
++++ b/src/components/agent/AgentDetail.vue
+@@ -39,5 +39,6 @@ import { toast } from 'vue-sonner'
+ import { agentStorage, subscriptionStorage } from '@/utils/storage'
+ import { useEnterpriseFeatures } from '@/composables/useEnterpriseFeatures'
++import { getApiUrl, getWidgetUrl } from '@/config/api'
+ 
+ const props = defineProps<{
+     agent: AgentWithCustomization
+@@ -165,11 +166,11 @@ const activeTab = ref(props.agent.use_workflow ? 'workflow-builder' : 'agent') /
+ 
+ 
+ const baseUrl = computed(() => {
+-    return import.meta.env.VITE_API_URL
++    return getApiUrl()
+ })
+ 
+ const widgetUrl = computed(() => {
+-    return import.meta.env.VITE_WIDGET_URL
++    return getWidgetUrl()
+ })
+ 
+ // Computed property to handle instructions as text
+diff --git a/src/services/firebase.ts b/src/services/firebase.ts
+--- a/src/services/firebase.ts
++++ b/src/services/firebase.ts
+@@ -17,13 +17,23 @@ limitations under the License.
+ import { initializeApp } from 'firebase/app'
+ import { getMessaging } from 'firebase/messaging'
+ import { userService } from './user'
++import {
++  getFirebaseApiKey,
++  getFirebaseAppId,
++  getFirebaseAuthDomain,
++  getFirebaseMeasurementId,
++  getFirebaseMessagingSenderId,
++  getFirebaseProjectId,
++  getFirebaseStorageBucket,
++  getFirebaseVapidKey,
++} from '@/config/api'
+ 
+ const firebaseConfig = {
+-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
++  apiKey: getFirebaseApiKey(),
++  authDomain: getFirebaseAuthDomain(),
++  projectId: getFirebaseProjectId(),
++  messagingSenderId: getFirebaseMessagingSenderId(),
++  appId: getFirebaseAppId(),
++  storageBucket: getFirebaseStorageBucket(),
++  measurementId: getFirebaseMeasurementId(),
+ }
+@@ -48,7 +58,7 @@ export const requestNotificationPermission = async () => {
+       if (permission === 'granted') {
+         const { getToken } = await import('firebase/messaging')
+         const token = await getToken(messaging, {
+-          vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
++          vapidKey: getFirebaseVapidKey(),
+         })
+         // Update FCM token in backend
+         await userService.updateFCMToken(token)
+diff --git a/src/components/agent/AgentCustomizationView.vue b/src/components/agent/AgentCustomizationView.vue
+--- a/src/components/agent/AgentCustomizationView.vue
++++ b/src/components/agent/AgentCustomizationView.vue
+@@ -22,5 +22,6 @@ import WebFont from 'webfontloader'
+ import { useSubscriptionStorage } from '@/utils/storage'
+ import { useEnterpriseFeatures } from '@/composables/useEnterpriseFeatures'
++import { getGoogleFontsApiKey } from '@/config/api'
+ 
+ const props = defineProps<{
+     agent: AgentWithCustomization
+@@ -297,7 +298,9 @@ const filteredFonts = computed(() => {
+ // Load Google Fonts
+ onMounted(async () => {
+     try {
+-        const response = await fetch(`https://www.googleapis.com/webfonts/v1/webfonts?key=${import.meta.env.VITE_GOOGLE_FONTS_API_KEY}&sort=popularity`)
++        const apiKey = getGoogleFontsApiKey()
++        if (!apiKey) return
++        const response = await fetch(`https://www.googleapis.com/webfonts/v1/webfonts?key=${encodeURIComponent(apiKey)}&sort=popularity`)
+         const data = await response.json()
+         googleFonts.value = data.items
+     } catch (error) {
+diff --git a/src/webclient/widget-env.ts b/src/webclient/widget-env.ts
+--- a/src/webclient/widget-env.ts
++++ b/src/webclient/widget-env.ts
+@@ -39,16 +39,23 @@ function getRuntimeConfig() {
+     return typeof window !== 'undefined' && window.APP_CONFIG ? window.APP_CONFIG : {};
+ }
+ 
++function getAssetOrigin() {
++    try {
++        return new URL(import.meta.url).origin;
++    } catch {
++        return '';
++    }
++}
++
+ export const widgetEnv = {
+     get API_URL() {
+         const config = getRuntimeConfig();
+-        // Default to the production API so a plain `build:widget` (no VITE_API_URL,
+-        // no runtime APP_CONFIG) ships a working widget instead of localhost. Local
+-        // dev overrides via VITE_API_URL; self-hosters via window.APP_CONFIG.
+-        return config.API_URL || import.meta.env.VITE_API_URL || 'https://api.chattermate.chat/api/v1';
++        // srcdoc widgets inherit the embedding site's origin. The ES module URL
++        // remains the ChatterMate gateway, so derive the API origin from it.
++        return config.API_URL || `${getAssetOrigin()}/api/v1`;
+     },
+     get WS_URL() {
+         const config = getRuntimeConfig();
+-        return config.WS_URL || import.meta.env.VITE_WS_URL || 'wss://api.chattermate.chat';
++        return config.WS_URL || getAssetOrigin();
+     }
+ }
+diff --git a/src/webclient/chattermate.js b/src/webclient/chattermate.js
+--- a/src/webclient/chattermate.js
++++ b/src/webclient/chattermate.js
+@@ -11,20 +11,21 @@ window.ChatterMate;
+     return /^#[0-9A-F]{6}$/i.test(color);
+   }
+ 
+-  // Get base URL - injected at build time or fallback to config
++  // Capture the loader's own origin while document.currentScript is available.
++  // The loader may execute on a completely different host website.
++  const loaderOrigin = (function () {
++    try {
++      const source = document.currentScript && document.currentScript.src;
++      return new URL(source || window.location.href, window.location.href).origin;
++    } catch (error) {
++      return window.location.origin;
++    }
++  })();
++
++  // Get the same-origin gateway API URL. ChatterMate.init({baseUrl}) can still
++  // override this explicitly after the loader is evaluated.
+   function getBaseUrl() {
+-    // Use build-time injected API URL if available
+-    if (typeof __CHATTERMATE_API_URL__ !== 'undefined') {
+-      return __CHATTERMATE_API_URL__;
+-    }
+-    
+-    // Fallback: Check if window.APP_CONFIG exists (from config.js)
+-    if (typeof window !== 'undefined' && window.APP_CONFIG) {
+-      return window.APP_CONFIG.API_URL;
+-    }
+-    
+-    // Final fallback — default to production so a plain build ships working.
+-    return 'https://api.chattermate.chat';
++    return `${loaderOrigin}/api/v1`;
+   }
+ 
+   // Configuration object
+
+diff --git a/src/services/user.ts b/src/services/user.ts
+--- a/src/services/user.ts
++++ b/src/services/user.ts
+@@ -44,5 +44,22 @@ export const userService = {
+         return null
+       }
+     }
++
++    // The KLM local gateway can establish the upstream HttpOnly session on
++    // behalf of the current KLM user. ChatterMate already emits a readable,
++    // URL-encoded user_info cookie; hydrate its existing local cache so the
++    // unmodified router guard recognizes that session.
++    const cookie = document.cookie
++      .split('; ')
++      .find((item) => item.startsWith('user_info='))
++    if (cookie) {
++      try {
++        this.userInfo = JSON.parse(decodeURIComponent(cookie.slice('user_info='.length)))
++        localStorage.setItem('user_info', JSON.stringify(this.userInfo))
++        return this.userInfo
++      } catch (err) {
++        console.error('Failed to parse user info cookie:', err)
++      }
++    }
+     return null
+   },

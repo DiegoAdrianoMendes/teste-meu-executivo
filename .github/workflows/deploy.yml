@@ -1,0 +1,741 @@
+name: Meu Executivo CI and AWS V1 Deploy
+
+on:
+  pull_request:
+  push:
+    branches:
+      - codex/saas-foundation
+      - codex/v1-responsive-finance-agents
+      - main
+  workflow_dispatch:
+    inputs:
+      release_phase:
+        description: "Fase humana e mutuamente exclusiva da release greenfield"
+        required: true
+        default: qualify_candidate
+        type: choice
+        options:
+          - qualify_candidate
+          - migrate_prepared
+      confirmation:
+        description: "QUALIFY_MEU_EXECUTIVO_V1_GREENFIELD ou MIGRATE_MEU_EXECUTIVO_V1_PREPARED"
+        required: false
+        type: string
+      candidate_workflow_run_id:
+        description: "Run ID do Gate 1 aprovado (somente migrate_prepared)"
+        required: false
+        type: string
+      candidate_artifact_id:
+        description: "Artifact ID imutável do Gate 1 (somente migrate_prepared)"
+        required: false
+        type: string
+      candidate_artifact_name:
+        description: "Nome exato do artifact do Gate 1 (somente migrate_prepared)"
+        required: false
+        type: string
+      candidate_artifact_digest:
+        description: "Digest externo do artifact do Gate 1 (somente migrate_prepared)"
+        required: false
+        type: string
+      candidate_evidence_sha256:
+        description: "SHA-256 externo do evidence do Gate 1 (somente migrate_prepared)"
+        required: false
+        type: string
+
+concurrency:
+  group: meu-executivo-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12.13"
+  NODE_VERSION: "24.18.0"
+
+jobs:
+  quality:
+    name: Quality gate
+    runs-on: ubuntu-latest
+    # The PostgreSQL-backed backend gate is intentionally serial and currently
+    # exercises more than five thousand tests. Hosted runners are materially
+    # slower than the certified local machine, so this ceiling protects against
+    # a hung job without terminating a healthy, progressing suite.
+    timeout-minutes: 300
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Install local launcher test runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends zsh
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt -r requirements-test.txt pytest-timeout
+
+      - name: Enforce reviewed Ruff debt ratchet
+        run: python scripts/verify_ruff_debt.py
+
+      - name: Validate frontend/backend contract
+        run: python scripts/validate_contract.py
+
+      - name: Verify pinned Meta Graph release contract
+        run: python scripts/verify_meta_graph_version.py
+
+      - name: Lint new migrations (lock_timeout, concurrent index)
+        run: python scripts/lint_migrations.py
+
+      - name: Materialize and verify pinned OSS upstreams
+        run: bash scripts/fetch_klm_upstreams.sh
+
+      - name: Validate AWS V1 release contract
+        run: python scripts/verify_aws_v1_release_contract.py
+
+      - name: Scan complete Git history for secrets
+        run: >-
+          docker run --rm -v "$PWD:/repo:ro"
+          zricethezav/gitleaks:v8.28.0@sha256:cdbb7c955abce02001a9f6c9f602fb195b7fadc1e812065883f695d1eeaba854
+          git --no-banner --redact --exit-code 1 --config=/repo/.gitleaks.toml /repo
+
+      - name: Prove PostgreSQL round-trip, RLS, and complete backend suite once
+        timeout-minutes: 240
+        env:
+          KLM_POSTGRES_QA_PULL_POLICY: missing
+          KLM_KEEP_POSTGRES_QA: "1"
+          KLM_POSTGRES_QA_ENV_FILE: .local/qa-evidence/postgresql-qa/runtime.env
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: ci-test-secret-key-not-for-production
+          APP_ENV: test
+          PYTEST_ADDOPTS: "--timeout=60 -x"
+        run: >-
+          bash scripts/verify_postgresql_qa.sh
+          --all
+          --junitxml=.local/qa-evidence/postgresql-qa/junit.xml
+
+      - name: Prove retained PostgreSQL 17 runtime for browser journeys
+        run: |
+          env_file=.local/qa-evidence/postgresql-qa/runtime.env
+          test -f "$env_file"
+          test "$(stat -c '%a' "$env_file")" = "600"
+          set -a
+          source "$env_file"
+          set +a
+          test -n "$KLM_POSTGRES_QA_CONTAINER_ID"
+          test "$(docker inspect --format '{{ index .Config.Labels "klm.postgresql.qa.run" }}' \
+            "$KLM_POSTGRES_QA_CONTAINER_ID")" = "$KLM_POSTGRES_QA_RUN_ID"
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine, text
+
+          engine = create_engine(os.environ["KLM_POSTGRES_QA_APP_SYNC_URL"])
+          with engine.connect() as connection:
+              current_user, version = connection.execute(
+                  text("SELECT current_user, current_setting('server_version_num')")
+              ).one()
+          engine.dispose()
+          if current_user != "klm_app" or not version.startswith("17"):
+              raise SystemExit(
+                  f"Browser database proof failed: user={current_user!r}, version={version!r}"
+              )
+          print("Browser database proof: PostgreSQL 17 with klm_app runtime role.")
+          PY
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Verify frontend
+        working-directory: frontend
+        env:
+          VITE_META_GRAPH_API_VERSION: v26.0
+        run: |
+          npm ci --silent
+          npm audit --omit=dev --audit-level=high
+          npm run lint
+          npm run typecheck
+          npm test -- --no-file-parallelism
+          npm test
+
+      - name: Install Playwright browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Start PostgreSQL-backed isolated backend and worker
+        env:
+          REDIS_URL: redis://localhost:6379/0
+          CELERY_BROKER_URL: redis://localhost:6379/1
+          CELERY_RESULT_BACKEND: redis://localhost:6379/2
+          SECRET_KEY: ci-test-secret-key-not-for-production
+          APP_ENV: development
+          ENVIRONMENT: development
+          KLM_RUNTIME_MODE: local_simulation
+          KLM_EXTERNAL_ACTIONS_ENABLED: "false"
+          KLM_PRIVATE_AWS_STORAGE_ENABLED: "false"
+          KLM_AWS_ENABLED: "false"
+          KLM_ONLINE_APPROVED: "false"
+          KLM_MODEL_APIS_ENABLED: "false"
+          KLM_LOCAL_BOOTSTRAP_ENABLED: "true"
+          PAPERCLIP_PUBLIC_URL: http://127.0.0.1:8010
+          AI_PROVIDER: fake
+          KLM_LOCAL_MODELS_ENABLED: "false"
+          KLM_AI_LEGACY_DIRECT_CALLS_ENABLED: "false"
+        run: |
+          set -a
+          source .local/qa-evidence/postgresql-qa/runtime.env
+          set +a
+          export DATABASE_URL="$KLM_POSTGRES_QA_APP_ASYNC_URL"
+          export DATABASE_URL_SYNC="$KLM_POSTGRES_QA_APP_SYNC_URL"
+          export INTEGRATION_SECRET_ENCRYPTION_KEY="$(openssl rand -hex 48)"
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8010 \
+            > /tmp/meu-executivo-api.log 2>&1 &
+          echo $! > /tmp/meu-executivo-api.pid
+          celery -A app.workers.celery_app.celery_app worker --loglevel=warning --concurrency=2 > /tmp/meu-executivo-worker.log 2>&1 &
+          echo $! > /tmp/meu-executivo-worker.pid
+          for _ in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8010/health >/dev/null; then
+              exit 0
+            fi
+            sleep 0.5
+          done
+          cat /tmp/meu-executivo-api.log
+          exit 1
+
+      - name: Build production bundles once and run complete browser journeys
+        timeout-minutes: 35
+        working-directory: frontend
+        env:
+          KLM_API_URL: http://127.0.0.1:8010
+          KLM_FRONTEND_URL: http://127.0.0.1:4173
+          KLM_BLACKBOX_URL: http://127.0.0.1:4174
+          KLM_E2E_PRODUCTION: "1"
+          KLM_E2E_ROLE_JOURNEYS: "1"
+          KLM_E2E_OPERATIONS: "1"
+          KLM_E2E_CANCELLATION: "1"
+          KLM_E2E_PAGINATION: "1"
+          KLM_E2E_COMMERCIAL: "1"
+          KLM_E2E_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}
+          VITE_META_GRAPH_API_VERSION: v26.0
+          PLAYWRIGHT_JUNIT_OUTPUT_FILE: ../.local/qa-evidence/browser-e2e/junit.xml
+        run: |
+          mkdir -p ../.local/qa-evidence/browser-e2e
+          npm run test:e2e -- --reporter=line,junit
+          python ../scripts/verify_junit_clean.py \
+            ../.local/qa-evidence/browser-e2e/junit.xml
+
+      - name: Capture retained PostgreSQL diagnostics
+        if: failure()
+        run: |
+          env_file=.local/qa-evidence/postgresql-qa/runtime.env
+          if [[ -f "$env_file" ]]; then
+            set -a
+            source "$env_file"
+            set +a
+            observed_run_id="$(docker inspect --format '{{ index .Config.Labels "klm.postgresql.qa.run" }}' \
+              "$KLM_POSTGRES_QA_CONTAINER_ID" 2>/dev/null || true)"
+            if [[ "$observed_run_id" == "$KLM_POSTGRES_QA_RUN_ID" ]]; then
+              docker logs "$KLM_POSTGRES_QA_CONTAINER_ID" \
+                > .local/qa-evidence/postgresql-qa/container.log 2>&1 || true
+            fi
+          fi
+
+      - name: Preserve failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: meu-executivo-ci-diagnostics-${{ github.run_id }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            /tmp/meu-executivo-api.log
+            /tmp/meu-executivo-worker.log
+            .local/qa-evidence/postgresql-qa/junit.xml
+            .local/qa-evidence/postgresql-qa/container.log
+            .local/qa-evidence/browser-e2e/junit.xml
+            frontend/test-results
+            frontend/playwright-report
+
+      - name: Stop isolated processes and retained PostgreSQL
+        if: always()
+        run: |
+          test ! -f /tmp/meu-executivo-worker.pid || kill "$(cat /tmp/meu-executivo-worker.pid)" 2>/dev/null || true
+          test ! -f /tmp/meu-executivo-api.pid || kill "$(cat /tmp/meu-executivo-api.pid)" 2>/dev/null || true
+          env_file=.local/qa-evidence/postgresql-qa/runtime.env
+          if [[ -f "$env_file" ]]; then
+            set -a
+            source "$env_file"
+            set +a
+            observed_run_id="$(docker inspect --format '{{ index .Config.Labels "klm.postgresql.qa.run" }}' \
+              "$KLM_POSTGRES_QA_CONTAINER_ID" 2>/dev/null || true)"
+            if [[ "$observed_run_id" == "$KLM_POSTGRES_QA_RUN_ID" ]]; then
+              mkdir -p .local/qa-evidence/postgresql-qa
+              docker logs "$KLM_POSTGRES_QA_CONTAINER_ID" \
+                > .local/qa-evidence/postgresql-qa/container.log 2>&1 || true
+              docker rm -f "$KLM_POSTGRES_QA_CONTAINER_ID" >/dev/null 2>&1 || true
+            fi
+            unset KLM_POSTGRES_QA_APP_ASYNC_URL KLM_POSTGRES_QA_APP_SYNC_URL
+            rm -f "$env_file"
+          fi
+
+  qualify-candidate:
+    name: Gate 1 - qualify immutable V1 candidate
+    needs: quality
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.release_phase == 'qualify_candidate' &&
+      inputs.confirmation == 'QUALIFY_MEU_EXECUTIVO_V1_GREENFIELD' &&
+      github.ref == 'refs/heads/codex/v1-responsive-finance-agents'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: staging
+    concurrency:
+      group: meu-executivo-staging
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      DEPLOY_ENVIRONMENT: staging
+      AWS_IMAGE_ROLE_TO_ASSUME: ${{ vars.AWS_IMAGE_ROLE_TO_ASSUME }}
+      AWS_ECR_REPOSITORY: ${{ vars.AWS_ECR_REPOSITORY }}
+      KLM_RELEASE_MODE: greenfield-prepare
+
+    outputs:
+      candidate_artifact_id: ${{ steps.candidate-artifact.outputs.artifact-id }}
+      candidate_artifact_name: ${{ steps.candidate-evidence.outputs.artifact_name }}
+      candidate_artifact_digest: ${{ steps.candidate-artifact.outputs.artifact-digest }}
+      candidate_evidence_sha256: ${{ steps.candidate-evidence.outputs.evidence_sha256 }}
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Validate candidate qualification variables
+        run: ./scripts/verify_aws_v1_candidate_environment.sh
+
+      - name: Prove clean source checkout
+        run: |
+          git diff --quiet
+          git diff --cached --quiet
+          test -z "$(git status --porcelain --untracked-files=all)"
+          echo "KLM_CLEAN_CHECKOUT=true" >> "$GITHUB_ENV"
+
+      - name: Build backend image without AWS credentials
+        run: |
+          docker build --pull \
+            --build-arg "SOURCE_REVISION=$GITHUB_SHA" \
+            -t "meu-executivo-backend:$GITHUB_SHA" \
+            .
+
+      - name: Configure image credentials through OIDC
+        uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c # v4
+        with:
+          role-to-assume: ${{ env.AWS_IMAGE_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: meu-executivo-image-${{ github.run_id }}
+          unset-current-credentials: true
+
+      - name: Prove image OIDC identity
+        run: ./scripts/verify_aws_oidc_identity.sh "$AWS_IMAGE_ROLE_TO_ASSUME"
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2
+
+      - name: Push backend image and resolve immutable digest
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          candidate_tag="${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          remote_image="$ECR_REGISTRY/$AWS_ECR_REPOSITORY:$candidate_tag"
+          trap 'docker logout "$ECR_REGISTRY" >/dev/null 2>&1 || true' EXIT
+          docker tag "meu-executivo-backend:$GITHUB_SHA" "$remote_image"
+          docker push "$remote_image"
+          digest="$(aws ecr describe-images \
+            --repository-name "$AWS_ECR_REPOSITORY" \
+            --image-ids "imageTag=$candidate_tag" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)"
+          if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "ECR did not return a valid immutable image digest." >&2
+            exit 1
+          fi
+          backend_image="$ECR_REGISTRY/$AWS_ECR_REPOSITORY@$digest"
+          docker pull "$backend_image"
+          BACKEND_IMAGE="$backend_image" \
+            ./scripts/verify_candidate_migration_image.sh \
+            > candidate-migration-contract.json
+          echo "BACKEND_IMAGE=$backend_image" >> "$GITHUB_ENV"
+
+      - name: Build candidate release evidence
+        id: candidate-evidence
+        run: |
+          runtime_image_digest="${BACKEND_IMAGE##*@}"
+          jq -cSn \
+            --arg github_sha "$GITHUB_SHA" \
+            --arg workflow_run_id "$GITHUB_RUN_ID" \
+            --argjson clean_checkout "$KLM_CLEAN_CHECKOUT" \
+            --arg runtime_image_uri "$BACKEND_IMAGE" \
+            --arg runtime_image_digest "$runtime_image_digest" \
+            --slurpfile candidate_image_contract candidate-migration-contract.json '
+              {
+                schemaVersion: 1,
+                evidenceType: "candidate",
+                cleanCheckout: $clean_checkout,
+                githubSha: $github_sha,
+                ociRevisionLabel: $candidate_image_contract[0].ociRevisionLabel,
+                runtimeImageDigest: $runtime_image_digest,
+                alembicHeads: [$candidate_image_contract[0].alembicHead],
+                releaseContractPassed: true,
+                postHeadCatalogAuditRequired: true,
+                postHeadContractMarkerRequired:
+                  "Database migration and post-head runtime grant contract completed.",
+                workflowRunId: $workflow_run_id,
+                releaseMode: "greenfield-prepare",
+                runtimeImageUri: $runtime_image_uri,
+                candidateImageContract: $candidate_image_contract[0]
+              }
+            ' > candidate-release-evidence.json
+          sha256sum candidate-release-evidence.json \
+            > candidate-release-evidence.json.sha256
+          candidate_evidence_sha256="$(sha256sum candidate-release-evidence.json | awk '{print $1}')"
+          candidate_artifact_name="meu-executivo-v1-candidate-$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          echo "evidence_sha256=$candidate_evidence_sha256" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$candidate_artifact_name" >> "$GITHUB_OUTPUT"
+          ./scripts/verify_candidate_release_evidence.sh \
+            candidate-release-evidence.json \
+            candidate-release-evidence.json.sha256
+
+      - name: Preserve immutable candidate evidence and stop
+        id: candidate-artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: meu-executivo-v1-candidate-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 30
+          path: |
+            candidate-release-evidence.json
+            candidate-release-evidence.json.sha256
+
+      - name: Record candidate artifact digest and stop before PREPARED
+        env:
+          CANDIDATE_ARTIFACT_DIGEST: ${{ steps.candidate-artifact.outputs.artifact-digest }}
+        run: |
+          if [[ ! "$CANDIDATE_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "GitHub did not return a valid immutable artifact digest." >&2
+            exit 1
+          fi
+          printf 'Candidate artifact digest: %s. Apply PREPARED with this exact image, then approve Gate 2.\n' \
+            "$CANDIDATE_ARTIFACT_DIGEST"
+
+  migrate-prepared:
+    name: Gate 2 - verify PREPARED and migrate
+    needs: quality
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.release_phase == 'migrate_prepared' &&
+      inputs.confirmation == 'MIGRATE_MEU_EXECUTIVO_V1_PREPARED' &&
+      github.ref == 'refs/heads/codex/v1-responsive-finance-agents'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: staging
+    concurrency:
+      group: meu-executivo-staging
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+
+    outputs:
+      migration_artifact_id: ${{ steps.migration-artifact.outputs.artifact-id }}
+      migration_artifact_digest: ${{ steps.migration-artifact.outputs.artifact-digest }}
+      migration_evidence_sha256: ${{ steps.migration-evidence.outputs.evidence_sha256 }}
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      DEPLOY_ENVIRONMENT: staging
+      AWS_MIGRATION_ROLE_TO_ASSUME: ${{ vars.AWS_MIGRATION_ROLE_TO_ASSUME }}
+      AWS_RUNTIME_ROLE_TO_ASSUME: ${{ vars.AWS_RUNTIME_ROLE_TO_ASSUME }}
+      AWS_APPLICATION_STACK_NAME: ${{ vars.AWS_APPLICATION_STACK_NAME }}
+      AWS_ECS_CLUSTER: ${{ vars.AWS_ECS_CLUSTER }}
+      AWS_ECS_MIGRATION_TASK_FAMILY: ${{ vars.AWS_ECS_MIGRATION_TASK_FAMILY }}
+      AWS_ECS_MIGRATION_CONTAINER_NAME: ${{ vars.AWS_ECS_MIGRATION_CONTAINER_NAME }}
+      AWS_SFN_MIGRATION_STATE_MACHINE_ARN: ${{ vars.AWS_SFN_MIGRATION_STATE_MACHINE_ARN }}
+      AWS_MIGRATION_LOG_GROUP_NAME: ${{ vars.AWS_MIGRATION_LOG_GROUP_NAME }}
+      AWS_RDS_DB_IDENTIFIER: ${{ vars.AWS_RDS_DB_IDENTIFIER }}
+      KLM_RELEASE_MODE: greenfield-prepare
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Validate prepared-migration variables
+        run: ./scripts/verify_aws_v1_migrate_prepared_environment.sh
+
+      - name: Verify immutable Gate 1 artifact metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_WORKFLOW_RUN_ID: ${{ inputs.candidate_workflow_run_id }}
+          CANDIDATE_ARTIFACT_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_ARTIFACT_NAME: ${{ inputs.candidate_artifact_name }}
+          CANDIDATE_ARTIFACT_DIGEST: ${{ inputs.candidate_artifact_digest }}
+        run: |
+          if [[ ! "$CANDIDATE_WORKFLOW_RUN_ID" =~ ^[0-9]+$ ]] || \
+            [[ ! "$CANDIDATE_ARTIFACT_ID" =~ ^[0-9]+$ ]] || \
+            [[ ! "$CANDIDATE_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Gate 1 artifact identity is missing or invalid." >&2
+            exit 1
+          fi
+          if [[ ! "$CANDIDATE_ARTIFACT_NAME" =~ ^meu-executivo-v1-candidate-${GITHUB_SHA}-[0-9]+-[0-9]+$ ]]; then
+            echo "Gate 1 artifact name is missing or invalid." >&2
+            exit 1
+          fi
+          artifact_metadata="$(
+            curl --fail --silent --show-error --location \
+              --header "Authorization: Bearer $GH_TOKEN" \
+              --header "Accept: application/vnd.github+json" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/artifacts/$CANDIDATE_ARTIFACT_ID"
+          )"
+          jq -e \
+            --arg artifact_name "$CANDIDATE_ARTIFACT_NAME" \
+            --arg artifact_id "$CANDIDATE_ARTIFACT_ID" \
+            --arg artifact_digest "$CANDIDATE_ARTIFACT_DIGEST" \
+            --arg github_sha "$GITHUB_SHA" \
+            --arg workflow_run_id "$CANDIDATE_WORKFLOW_RUN_ID" '
+              (.id | tostring) == $artifact_id and
+              .name == $artifact_name and
+              .digest == $artifact_digest and
+              .expired == false and
+              .workflow_run.head_sha == $github_sha and
+              (.workflow_run.id | tostring) == $workflow_run_id
+            ' <<<"$artifact_metadata" >/dev/null || {
+              echo "Gate 1 artifact metadata does not match its trusted job outputs." >&2
+              exit 1
+            }
+
+      - name: Download the exact Gate 1 candidate evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ inputs.candidate_artifact_id }}
+          run-id: ${{ inputs.candidate_workflow_run_id }}
+          github-token: ${{ github.token }}
+          path: candidate-evidence
+          merge-multiple: true
+
+      - name: Verify candidate evidence without AWS credentials
+        env:
+          CANDIDATE_ARTIFACT_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_ARTIFACT_DIGEST: ${{ inputs.candidate_artifact_digest }}
+          EXPECTED_CANDIDATE_EVIDENCE_SHA256: ${{ inputs.candidate_evidence_sha256 }}
+        run: |
+          if [[ ! "$CANDIDATE_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Gate 1 artifact digest is missing or invalid." >&2
+            exit 1
+          fi
+          if [[ ! "$EXPECTED_CANDIDATE_EVIDENCE_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "Trusted Gate 1 candidate evidence checksum is missing or invalid." >&2
+            exit 1
+          fi
+          ./scripts/verify_candidate_release_evidence.sh \
+            candidate-evidence/candidate-release-evidence.json \
+            candidate-evidence/candidate-release-evidence.json.sha256
+          echo "CANDIDATE_ARTIFACT_ID=$CANDIDATE_ARTIFACT_ID" >> "$GITHUB_ENV"
+          echo "CANDIDATE_ARTIFACT_DIGEST=$CANDIDATE_ARTIFACT_DIGEST" >> "$GITHUB_ENV"
+
+      - name: Configure migration preflight credentials through OIDC
+        uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c # v4
+        with:
+          role-to-assume: ${{ env.AWS_MIGRATION_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: meu-executivo-prepared-preflight-${{ github.run_id }}
+          unset-current-credentials: true
+
+      - name: Prove migration preflight OIDC identity
+        run: ./scripts/verify_aws_oidc_identity.sh "$AWS_MIGRATION_ROLE_TO_ASSUME"
+
+      - name: Prove PREPARED state before snapshot
+        run: ./scripts/verify_aws_v1_prepared_state.sh
+
+      - name: Configure runtime snapshot credentials through OIDC
+        uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c # v4
+        with:
+          role-to-assume: ${{ env.AWS_RUNTIME_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: meu-executivo-runtime-snapshot-${{ github.run_id }}
+          unset-current-credentials: true
+
+      - name: Prove runtime snapshot OIDC identity
+        run: ./scripts/verify_aws_oidc_identity.sh "$AWS_RUNTIME_ROLE_TO_ASSUME"
+
+      - name: Create pre-migration RDS snapshot
+        run: |
+          ./scripts/verify_aws_database_bootstrap_absent.sh
+          snapshot_id="meu-executivo-${DEPLOY_ENVIRONMENT}-predeploy-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          aws rds create-db-snapshot \
+            --db-instance-identifier "$AWS_RDS_DB_IDENTIFIER" \
+            --db-snapshot-identifier "$snapshot_id"
+          aws rds wait db-snapshot-available --db-snapshot-identifier "$snapshot_id"
+          snapshot_status="$(aws rds describe-db-snapshots \
+            --db-snapshot-identifier "$snapshot_id" \
+            --query 'DBSnapshots[0].Status' \
+            --output text)"
+          if [[ "$snapshot_status" != "available" ]]; then
+            echo "RDS snapshot is not available after the blocking waiter." >&2
+            exit 1
+          fi
+          echo "RDS_SNAPSHOT_ID=$snapshot_id" >> "$GITHUB_ENV"
+          echo "RDS_SNAPSHOT_STATUS=$snapshot_status" >> "$GITHUB_ENV"
+
+      - name: Configure migration execution credentials through OIDC
+        uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c # v4
+        with:
+          role-to-assume: ${{ env.AWS_MIGRATION_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: meu-executivo-migration-${{ github.run_id }}
+          unset-current-credentials: true
+
+      - name: Prove migration execution OIDC identity
+        run: ./scripts/verify_aws_oidc_identity.sh "$AWS_MIGRATION_ROLE_TO_ASSUME"
+
+      - name: Reprove PREPARED state immediately before migration
+        run: ./scripts/verify_aws_v1_prepared_state.sh
+
+      - name: Run blocking ECS migration and require private log marker
+        id: migration
+        run: ./scripts/run_aws_ecs_migration_v1.sh
+
+      - name: Build final migration evidence
+        id: migration-evidence
+        env:
+          MARKER_OBSERVED: ${{ steps.migration.outputs.contract_marker_observed }}
+          CATALOG_AUDIT_PASSED: ${{ steps.migration.outputs.post_head_catalog_audit }}
+        run: |
+          jq -cSn \
+            --arg github_sha "$GITHUB_SHA" \
+            --arg workflow_run_id "$GITHUB_RUN_ID" \
+            --arg candidate_artifact_id "$CANDIDATE_ARTIFACT_ID" \
+            --arg candidate_artifact_digest "$CANDIDATE_ARTIFACT_DIGEST" \
+            --arg candidate_evidence_sha256 "$CANDIDATE_EVIDENCE_SHA256" \
+            --arg rds_snapshot_id "$RDS_SNAPSHOT_ID" \
+            --arg rds_snapshot_status "$RDS_SNAPSHOT_STATUS" \
+            --arg migration_task_definition_arn \
+              "${{ steps.migration.outputs.task_definition_arn }}" \
+            --arg migration_execution_arn \
+              "${{ steps.migration.outputs.execution_arn }}" \
+            --arg migration_task_arn "${{ steps.migration.outputs.task_arn }}" \
+            --arg migration_log_stream "${{ steps.migration.outputs.log_stream }}" \
+            --argjson marker_observed "$MARKER_OBSERVED" \
+            --argjson catalog_audit_passed "$CATALOG_AUDIT_PASSED" \
+            --slurpfile candidate candidate-evidence/candidate-release-evidence.json '
+              {
+                schemaVersion: 1,
+                evidenceType: "migration",
+                githubSha: $github_sha,
+                ociRevisionLabel: $candidate[0].ociRevisionLabel,
+                runtimeImageUri: $candidate[0].runtimeImageUri,
+                runtimeImageDigest: $candidate[0].runtimeImageDigest,
+                alembicHeads: $candidate[0].alembicHeads,
+                releaseContractPassed: $candidate[0].releaseContractPassed,
+                workflowRunId: $workflow_run_id,
+                candidateWorkflowRunId: $candidate[0].workflowRunId,
+                candidateArtifactId: $candidate_artifact_id,
+                candidateArtifactDigest: $candidate_artifact_digest,
+                candidateEvidenceSha256: $candidate_evidence_sha256,
+                runtimeStateObserved: "PREPARED",
+                rdsSnapshotId: $rds_snapshot_id,
+                rdsSnapshotStatusObserved: $rds_snapshot_status,
+                postHeadCatalogAudit: $catalog_audit_passed,
+                postHeadContractMarker:
+                  "Database migration and post-head runtime grant contract completed.",
+                postHeadContractMarkerObserved: $marker_observed,
+                migration: {
+                  taskDefinitionArn: $migration_task_definition_arn,
+                  executionArn: $migration_execution_arn,
+                  taskArn: $migration_task_arn,
+                  logStream: $migration_log_stream,
+                  command: ["python", "-m", "app.db.aws_database_roles", "migrate"],
+                  exitCode: 0
+                },
+                deploymentMutations: {
+                  ecsServices: false,
+                  frontends: false,
+                  dnsCutover: false,
+                  runtimeEnabled: false
+                }
+              }
+            ' > greenfield-migration-evidence.json
+          jq -e --arg github_sha "$GITHUB_SHA" '
+            .schemaVersion == 1 and
+            .evidenceType == "migration" and
+            .githubSha == $github_sha and
+            .ociRevisionLabel == $github_sha and
+            (.runtimeImageDigest | test("^sha256:[0-9a-f]{64}$")) and
+            .alembicHeads == ["c9d0e1f2a3b4"] and
+            .releaseContractPassed == true and
+            .runtimeStateObserved == "PREPARED" and
+            .rdsSnapshotStatusObserved == "available" and
+            .postHeadCatalogAudit == true and
+            .postHeadContractMarkerObserved == true and
+            .postHeadContractMarker ==
+              "Database migration and post-head runtime grant contract completed." and
+            .migration.command == ["python", "-m", "app.db.aws_database_roles", "migrate"] and
+            .migration.exitCode == 0 and
+            .deploymentMutations == {
+              ecsServices: false,
+              frontends: false,
+              dnsCutover: false,
+              runtimeEnabled: false
+            }
+          ' greenfield-migration-evidence.json >/dev/null
+          sha256sum greenfield-migration-evidence.json \
+            > greenfield-migration-evidence.json.sha256
+          migration_evidence_sha256="$(sha256sum greenfield-migration-evidence.json | awk '{print $1}')"
+          echo "evidence_sha256=$migration_evidence_sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Preserve final migration evidence
+        id: migration-artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: meu-executivo-v1-migration-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 30
+          path: |
+            greenfield-migration-evidence.json
+            greenfield-migration-evidence.json.sha256
+
+      - name: Record final artifact digest and stop before ENABLED
+        env:
+          MIGRATION_ARTIFACT_ID: ${{ steps.migration-artifact.outputs.artifact-id }}
+          MIGRATION_ARTIFACT_DIGEST: ${{ steps.migration-artifact.outputs.artifact-digest }}
+          MIGRATION_EVIDENCE_SHA256: ${{ steps.migration-evidence.outputs.evidence_sha256 }}
+        run: |
+          if [[ ! "$MIGRATION_ARTIFACT_ID" =~ ^[0-9]+$ ]] || \
+            [[ ! "$MIGRATION_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || \
+            [[ ! "$MIGRATION_EVIDENCE_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "GitHub did not return a valid final artifact identity." >&2
+            exit 1
+          fi
+          printf 'Migration artifact id=%s digest=%s evidence_sha256=%s. Runtime remains PREPARED; ENABLED requires a new human IaC change set.\n' \
+            "$MIGRATION_ARTIFACT_ID" "$MIGRATION_ARTIFACT_DIGEST" "$MIGRATION_EVIDENCE_SHA256"

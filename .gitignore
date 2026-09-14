@@ -1,0 +1,83 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+# lib/ — ignorar apenas na raiz (Python venv), não em subpastas do frontend
+/lib/
+/lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+.env
+.env.runtime
+.env.migration
+/deploy/.env.production
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.local/
+/node_modules/
+/frontend/dist-blackbox/
+/frontend/dist-app/
+/tmp/
+*.tsbuildinfo
+*.db
+*.sqlite
+*.sqlite3
+
+# Provas locais/reprodutíveis: nunca pertencem à candidata de release.
+/app/data/oss_function_unit_fixtures.json
+/app/data/oss_function_unit_verification.json
+/app/data/oss_native_proofs/*.tar.gz
+/app/data/saas_v5/baseline.json
+/app/data/saas_v5/p1-verification.json
+/app/data/saas_v5/p2-verification.json
+/app/data/saas_v5/p4-verification.json
+/app/data/saas_v5/p5-verification.json
+
+# Alembic
+# (manter versions no git, ignorar apenas cache)
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets — NUNCA commitar
+*.pem
+*.key
+secrets/
+
+# Upstreams, quarentena e caches de adaptação são reconstruíveis localmente.
+# O lock, o censo, a proveniência e o ledger revisável ficam em docs/.
+/.vendor/

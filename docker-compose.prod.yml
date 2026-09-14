@@ -1,0 +1,141 @@
+# Fallback self-hosted da V1. O deploy principal usa ECS + RDS + ElastiCache.
+# Este arquivo não contém credenciais AWS: em EC2/ECS o SDK usa a IAM Role.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-backend: &backend
+  image: ${BACKEND_IMAGE:?defina a imagem backend imutável}
+  logging: *default-logging
+  restart: unless-stopped
+  networks:
+    - meu_executivo_internal
+
+x-runtime-environment: &runtime-environment
+  APP_ENV: production
+  DATABASE_URL: ${DATABASE_URL:?defina a URL assíncrona do usuário runtime no RDS}
+  DATABASE_URL_SYNC: ${DATABASE_URL_SYNC:?defina a URL síncrona do usuário runtime no RDS}
+  REDIS_URL: ${REDIS_URL:?defina a URL TLS do ElastiCache}
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL:?defina o broker durável}
+  CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:?defina o backend de resultados}
+  KLM_ONLINE_APPROVED: ${KLM_ONLINE_APPROVED:?defina explicitamente o gate online}
+  KLM_EXTERNAL_ACTIONS_ENABLED: ${KLM_EXTERNAL_ACTIONS_ENABLED:?defina explicitamente o gate externo}
+  KLM_PRIVATE_AWS_STORAGE_ENABLED: ${KLM_PRIVATE_AWS_STORAGE_ENABLED:?defina explicitamente o gate do storage privado AWS}
+  KLM_AWS_ENABLED: ${KLM_AWS_ENABLED:?defina explicitamente o gate AWS}
+  KLM_ADMINISTRATIVE_ACCESS_ENABLED: ${KLM_ADMINISTRATIVE_ACCESS_ENABLED:?defina explicitamente o gate de acesso administrativo}
+  AWS_REGION: ${AWS_REGION:?defina a região AWS}
+  S3_BUCKET_NAME: ${S3_BUCKET_NAME:?defina o bucket privado de documentos}
+  S3_KMS_KEY_ID: ${S3_KMS_KEY_ID:?defina a chave KMS do bucket privado}
+  DOCUMENT_AV_MODE: ${DOCUMENT_AV_MODE:?defina clamav para documentos privados}
+  CLAMAV_HOST: ${CLAMAV_HOST:?defina o endpoint privado do scanner ClamAV}
+  CLAMAV_PORT: ${CLAMAV_PORT:-3310}
+
+services:
+  migrate:
+    <<: *backend
+    env_file: ${MEU_EXECUTIVO_MIGRATION_ENV_FILE:-.env.migration}
+    restart: "no"
+    command: alembic upgrade ${ALEMBIC_TARGET_REVISION:-head}
+    mem_limit: 256m
+    cpus: 0.5
+    environment:
+      APP_ENV: production
+      DATABASE_URL: ${DATABASE_MIGRATOR_URL:?defina a URL assíncrona do migrador no RDS}
+      DATABASE_URL_SYNC: ${DATABASE_MIGRATOR_URL_SYNC:?defina a URL síncrona do migrador no RDS}
+
+  api:
+    <<: *backend
+    env_file: ${MEU_EXECUTIVO_RUNTIME_ENV_FILE:-.env.runtime}
+    container_name: meu_executivo_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    mem_limit: 1024m
+    cpus: 1.0
+    environment: *runtime-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:8000:8000"
+    networks:
+      - meu_executivo_internal
+      - meu_executivo_edge
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.meu-executivo-api.rule=Host(`${API_HOSTNAME:-api.meuexecutivo.com}`)"
+      - "traefik.http.routers.meu-executivo-api.entrypoints=websecure"
+      - "traefik.http.routers.meu-executivo-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.meu-executivo-api.loadbalancer.server.port=8000"
+
+  worker:
+    <<: *backend
+    env_file: ${MEU_EXECUTIVO_RUNTIME_ENV_FILE:-.env.runtime}
+    container_name: meu_executivo_worker
+    command: celery -A app.workers.celery_app.celery_app worker --loglevel=info --concurrency=4
+    mem_limit: 768m
+    cpus: 0.75
+    environment: *runtime-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  beat:
+    <<: *backend
+    env_file: ${MEU_EXECUTIVO_RUNTIME_ENV_FILE:-.env.runtime}
+    container_name: meu_executivo_beat
+    command: celery -A app.workers.celery_app.celery_app beat --loglevel=info --scheduler celery.beat:PersistentScheduler
+    mem_limit: 256m
+    cpus: 0.25
+    environment:
+      <<: *runtime-environment
+      KLM_PRIVATE_AWS_STORAGE_ENABLED: "false"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # Fallback opcional. Na AWS V1, App e Blackbox são builds independentes em
+  # buckets/distribuições CloudFront distintos.
+  frontend-app:
+    profiles: ["self-hosted-edge"]
+    image: ${FRONTEND_APP_IMAGE:?defina a imagem imutável do App}
+    container_name: meu_executivo_frontend_app
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 128m
+    cpus: 0.25
+    networks:
+      - meu_executivo_internal
+      - meu_executivo_edge
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.meu-executivo-app.rule=Host(`${APP_HOSTNAME:-app.meuexecutivo.com}`)"
+      - "traefik.http.routers.meu-executivo-app.entrypoints=websecure"
+      - "traefik.http.routers.meu-executivo-app.tls.certresolver=letsencrypt"
+      - "traefik.http.services.meu-executivo-app.loadbalancer.server.port=8080"
+
+  frontend-blackbox:
+    profiles: ["self-hosted-edge"]
+    image: ${FRONTEND_BLACKBOX_IMAGE:?defina a imagem imutável da Blackbox}
+    container_name: meu_executivo_frontend_blackbox
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 128m
+    cpus: 0.25
+    networks:
+      - meu_executivo_internal
+      - meu_executivo_edge
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.meu-executivo-blackbox.rule=Host(`${BLACKBOX_HOSTNAME:-blackbox.meuexecutivo.com}`)"
+      - "traefik.http.routers.meu-executivo-blackbox.entrypoints=websecure"
+      - "traefik.http.routers.meu-executivo-blackbox.tls.certresolver=letsencrypt"
+      - "traefik.http.services.meu-executivo-blackbox.loadbalancer.server.port=8080"
+
+networks:
+  meu_executivo_internal:
+    driver: bridge
+  meu_executivo_edge:
+    external: true
+    name: ${PROXY_NETWORK:-meu_executivo_edge}

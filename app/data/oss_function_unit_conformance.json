@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "policy": "A unit reaches native_verified only with an independent pinned-source oracle and a matching immutable binding ID.",
+  "proofs": []
+}

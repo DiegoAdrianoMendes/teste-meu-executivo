@@ -1,0 +1,26 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Frontend (Vite)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "8080", "--host"],
+      "cwd": "${workspaceFolder}/frontend",
+      "port": 8080
+    },
+    {
+      "name": "Backend (FastAPI)",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"],
+      "cwd": "${workspaceFolder}",
+      "port": 8000
+    },
+    {
+      "name": "Celery Worker",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "--concurrency=2"],
+      "cwd": "${workspaceFolder}",
+      "port": 5555
+    }
+  ]
+}

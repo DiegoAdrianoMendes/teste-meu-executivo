@@ -1,0 +1,7 @@
+# Deterministic runtime ledgers. They remain versioned because a clean checkout
+# and the production image consume them fail-closed, but code review must not
+# attempt to render more than one million generated JSON lines.
+docs/oss-function-units.lock.json linguist-generated=true -diff
+app/data/oss_function_unit_dispositions.json linguist-generated=true -diff
+*.md whitespace=-trailing-space
+*.patch whitespace=-trailing-space

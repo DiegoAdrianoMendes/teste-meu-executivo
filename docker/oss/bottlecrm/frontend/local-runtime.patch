@@ -1,0 +1,50 @@
+diff --git a/src/lib/api.js b/src/lib/api.js
+--- a/src/lib/api.js
++++ b/src/lib/api.js
+@@ -13,10 +13,11 @@ import { goto } from '$app/navigation';
+ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+ 
+ // API Base URL from environment variables
+-// Note: VITE_ prefix is required for client-side env vars
+-const API_BASE_URL = env.PUBLIC_DJANGO_API_URL
+-  ? `${env.PUBLIC_DJANGO_API_URL}/api`
+-  : 'http://localhost:8000/api';
++const API_BASE_URL = typeof window !== 'undefined'
++  ? `${window.location.origin}/api`
++  : env.PUBLIC_DJANGO_API_URL
++    ? `${env.PUBLIC_DJANGO_API_URL}/api`
++    : 'http://bottlecrm-backend:8000/api';
+ 
+ /**
+  * Storage keys for tokens and org
+@@ -28,5 +29,30 @@ const STORAGE_KEYS = {
+   USER: 'user'
+ };
+ 
++// KLM's signed, single-use launch exchanges its server-side JWTs for this
++// short-lived bootstrap cookie. BottleCRM already stores these values in
++// localStorage for browser-side CRUD, so hydrate the established contract and
++// immediately delete the transfer cookie.
++if (typeof document !== 'undefined') {
++  const entry = document.cookie
++    .split('; ')
++    .find((item) => item.startsWith('klm_bottle_bootstrap='));
++  if (entry) {
++    try {
++      const raw = entry.slice('klm_bottle_bootstrap='.length);
++      const normalized = raw.replace(/-/g, '+').replace(/_/g, '/');
++      const padding = '='.repeat((4 - (normalized.length % 4)) % 4);
++      const payload = JSON.parse(atob(normalized + padding));
++      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, payload.access_token);
++      localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, payload.refresh_token);
++      localStorage.setItem(STORAGE_KEYS.ORG_ID, payload.org_id);
++    } catch (error) {
++      console.error('BottleCRM local session bootstrap failed:', error);
++    } finally {
++      document.cookie = 'klm_bottle_bootstrap=; Max-Age=0; Path=/; SameSite=Strict';
++    }
++  }
++}
++
+ /**
+  * Get token from localStorage (client-side) or return null (server-side)

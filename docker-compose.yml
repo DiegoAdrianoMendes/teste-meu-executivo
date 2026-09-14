@@ -1,0 +1,579 @@
+name: klm-hub-local
+
+x-rotated-logs: &rotated-logs
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-app-environment: &app-environment
+  APP_ENV: local
+  ENVIRONMENT: local
+  LOG_LEVEL: INFO
+  SECRET_KEY: ${KLM_SECRET_KEY:?Set KLM_SECRET_KEY to a local-only random value}
+  INTEGRATION_SECRET_ENCRYPTION_KEY: ${KLM_INTEGRATION_SECRET_ENCRYPTION_KEY:?Set KLM_INTEGRATION_SECRET_ENCRYPTION_KEY to a distinct local-only value}
+  WHATSAPP_SECRET_ENCRYPTION_KEY: ${KLM_INTEGRATION_SECRET_ENCRYPTION_KEY:?Set KLM_INTEGRATION_SECRET_ENCRYPTION_KEY to a distinct local-only value}
+  DATABASE_URL: postgresql+asyncpg://klm_app:${KLM_APP_DB_PASSWORD:?Set KLM_APP_DB_PASSWORD to a local-only value}@postgres:5432/klm_legal_hub
+  DATABASE_URL_SYNC: postgresql://klm_app:${KLM_APP_DB_PASSWORD:?Set KLM_APP_DB_PASSWORD to a local-only value}@postgres:5432/klm_legal_hub
+  REDIS_URL: redis://:${KLM_REDIS_PASSWORD:?Set KLM_REDIS_PASSWORD to a local-only value}@redis:6379/0
+  CELERY_BROKER_URL: redis://:${KLM_REDIS_PASSWORD:?Set KLM_REDIS_PASSWORD to a local-only value}@redis:6379/1
+  CELERY_RESULT_BACKEND: redis://:${KLM_REDIS_PASSWORD:?Set KLM_REDIS_PASSWORD to a local-only value}@redis:6379/2
+  KLM_RUNTIME_MODE: local_simulation
+  KLM_EXTERNAL_ACTIONS_ENABLED: "false"
+  KLM_PRIVATE_AWS_STORAGE_ENABLED: "false"
+  KLM_AWS_ENABLED: "false"
+  KLM_ADMINISTRATIVE_ACCESS_ENABLED: "false"
+  KLM_ONLINE_APPROVED: "false"
+  KLM_MODEL_APIS_ENABLED: "false"
+  KLM_LOCAL_MODELS_ENABLED: "false"
+  KLM_AI_LEGACY_DIRECT_CALLS_ENABLED: "false"
+  KLM_LOCAL_BOOTSTRAP_ENABLED: "false"
+  KLM_LOCAL_REDIS_ENABLED: "true"
+  KLM_OSS_LOCAL_BRIDGES_ENABLED: "false"
+  AI_PROVIDER: fake
+  KLM_AI_BUDGET_BACKEND: redis
+  KLM_AI_CIRCUIT_BACKEND: redis
+  KLM_AI_TELEMETRY_BACKEND: redis
+  KLM_AI_TELEMETRY_STREAM_MAXLEN: "100000"
+  KLM_AI_RESPONSE_CACHE_ENABLED: "true"
+  KLM_AI_RESPONSE_CACHE_BACKEND: redis
+  KLM_AI_RESPONSE_CACHE_TTL_SECONDS: "300"
+  KLM_AI_RESPONSE_CACHE_MAX_VALUE_BYTES: "1048576"
+  KLM_AI_FAKE_MODEL: klm-fake-v1
+  KLM_AI_FAKE_SEED: klm-local-p4-v1
+  KLM_AI_FAKE_RESPONSE_TEXT: Local deterministic simulation.
+  KLM_AI_OPENAI_BASE_URL: http://fake-provider:8080/v1
+  KLM_AI_ANTHROPIC_BASE_URL: http://fake-provider:8080/v1
+  KLM_AI_GEMINI_BASE_URL: http://fake-provider:8080/v1
+  KLM_AI_ALLOWED_BASE_URLS_JSON: '["http://fake-provider:8080/v1"]'
+  OLLAMA_BASE_URL: http://fake-provider:8080
+  GEMMA_ENABLED: "false"
+  OPENAI_API_KEY: ""
+  ANTHROPIC_API_KEY: ""
+  GEMINI_API_KEY: ""
+  RESEND_API_KEY: ""
+  STRIPE_SECRET_KEY: ""
+  STRIPE_WEBHOOK_SECRET: ""
+  META_ADS_ACCESS_TOKEN: ""
+  GOOGLE_ADS_DEVELOPER_TOKEN: ""
+  ZAPSIGN_API_TOKEN: ""
+  LANGCHAIN_TRACING_V2: "false"
+  LANGCHAIN_API_KEY: ""
+  AWS_ACCESS_KEY_ID: ""
+  AWS_SECRET_ACCESS_KEY: ""
+  AWS_EC2_METADATA_DISABLED: "true"
+  S3_BUCKET_NAME: klm-hub-documents
+  S3_PUBLIC_ASSET_BUCKET_NAME: klm-hub-public-assets
+  S3_PRIVATE_BUCKET_REQUIRED: "true"
+  FRONTEND_URL: http://localhost:${KLM_PROXY_PORT:-8080}
+  PAPERCLIP_PUBLIC_URL: http://localhost:${KLM_PROXY_PORT:-8080}
+  CORS_ORIGINS: '["http://localhost:${KLM_PROXY_PORT:-8080}","http://127.0.0.1:${KLM_PROXY_PORT:-8080}"]'
+  HTTP_PROXY: ""
+  HTTPS_PROXY: ""
+  ALL_PROXY: ""
+  NO_PROXY: "*"
+
+x-app-service: &app-service
+  image: klm/legal-hub-api:p4-local
+  pull_policy: never
+  build:
+    context: .
+    dockerfile: Dockerfile
+    args:
+      PYTHON_IMAGE: python:3.12.13-slim-bookworm
+      UV_IMAGE: ghcr.io/astral-sh/uv:0.8.22
+  environment: *app-environment
+  user: "10001:10001"
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  init: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=128m,mode=1777
+  networks:
+    - klm_internal
+  logging: *rotated-logs
+  stop_grace_period: 30s
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.1-pg16
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_DB: klm_legal_hub
+      POSTGRES_USER: klm_migrator
+      POSTGRES_PASSWORD: ${KLM_POSTGRES_PASSWORD:?Set KLM_POSTGRES_PASSWORD to a local-only value}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - klm_internal
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+          && psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -tAc
+          "SELECT 1 FROM pg_available_extensions WHERE name = 'vector'" | grep -qx 1
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    shm_size: 256m
+    cpus: 1.0
+    mem_limit: 1024m
+    mem_reservation: 512m
+    pids_limit: 256
+    logging: *rotated-logs
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+
+  rls-role-bootstrap:
+    image: pgvector/pgvector:0.8.1-pg16
+    pull_policy: never
+    restart: "no"
+    user: "999:999"
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: klm_legal_hub
+      PGUSER: klm_migrator
+      PGPASSWORD: ${KLM_POSTGRES_PASSWORD:?Set KLM_POSTGRES_PASSWORD to a local-only value}
+      POSTGRES_DB: klm_legal_hub
+      POSTGRES_USER: klm_migrator
+      KLM_APP_DB_USER: klm_app
+      KLM_APP_DB_PASSWORD: ${KLM_APP_DB_PASSWORD:?Set KLM_APP_DB_PASSWORD to a local-only value}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./docker/postgres/bootstrap-runtime-role.sh:/bootstrap-runtime-role.sh:ro
+    command: ["/bin/sh", "/bootstrap-runtime-role.sh"]
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+    networks:
+      - klm_internal
+    cpus: 0.25
+    mem_limit: 128m
+    mem_reservation: 64m
+    pids_limit: 64
+    logging: *rotated-logs
+
+  migrate:
+    <<: *app-service
+    restart: "no"
+    environment:
+      APP_ENV: local
+      PYTHONHASHSEED: "0"
+      DATABASE_URL: postgresql+asyncpg://klm_migrator:${KLM_POSTGRES_PASSWORD:?Set KLM_POSTGRES_PASSWORD to a local-only value}@postgres:5432/klm_legal_hub
+      DATABASE_URL_SYNC: postgresql://klm_migrator:${KLM_POSTGRES_PASSWORD:?Set KLM_POSTGRES_PASSWORD to a local-only value}@postgres:5432/klm_legal_hub
+      KLM_RUNTIME_MODE: local_simulation
+      KLM_EXTERNAL_ACTIONS_ENABLED: "false"
+      KLM_PRIVATE_AWS_STORAGE_ENABLED: "false"
+      KLM_AWS_ENABLED: "false"
+      KLM_ADMINISTRATIVE_ACCESS_ENABLED: "false"
+      KLM_ONLINE_APPROVED: "false"
+      KLM_MODEL_APIS_ENABLED: "false"
+      AWS_EC2_METADATA_DISABLED: "true"
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      ALL_PROXY: ""
+      NO_PROXY: "*"
+    depends_on:
+      rls-role-bootstrap:
+        condition: service_completed_successfully
+    command: ["alembic", "upgrade", "head"]
+    cpus: 0.75
+    mem_limit: 768m
+    mem_reservation: 256m
+    pids_limit: 128
+
+  redis:
+    image: redis:7.4.2-alpine
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      KLM_REDIS_PASSWORD: ${KLM_REDIS_PASSWORD:?Set KLM_REDIS_PASSWORD to a local-only value}
+    command:
+      - /bin/sh
+      - -ec
+      - exec redis-server --appendonly yes --appendfsync everysec --requirepass "$$KLM_REDIS_PASSWORD"
+    volumes:
+      - redis_data:/data
+    networks:
+      - klm_internal
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - REDISCLI_AUTH="$$KLM_REDIS_PASSWORD" redis-cli --no-auth-warning ping | grep -qx PONG
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+    cpus: 0.5
+    mem_limit: 384m
+    mem_reservation: 128m
+    pids_limit: 128
+    logging: *rotated-logs
+    stop_grace_period: 20s
+
+  api:
+    <<: *app-service
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --workers
+      - "2"
+      - --proxy-headers
+    volumes:
+      - local_object_data:/app/.local/object-storage
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).read()
+      interval: 10s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+    cpus: 1.5
+    mem_limit: 1536m
+    mem_reservation: 512m
+    pids_limit: 256
+
+  worker:
+    <<: *app-service
+    profiles: [agents, full]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    command:
+      - celery
+      - -A
+      - app.workers.celery_app.celery_app
+      - worker
+      - --loglevel=info
+      - --hostname=worker@%h
+      - --concurrency=${KLM_WORKER_CONCURRENCY:-2}
+    volumes:
+      - local_object_data:/app/.local/object-storage
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          celery -A app.workers.celery_app.celery_app inspect ping
+          --destination "worker@$$HOSTNAME" --timeout 5 | grep -q pong
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    cpus: 1.5
+    mem_limit: 1024m
+    mem_reservation: 384m
+    pids_limit: 256
+
+  beat:
+    <<: *app-service
+    profiles: [agents, full]
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    command:
+      - celery
+      - -A
+      - app.workers.celery_app.celery_app
+      - beat
+      - --loglevel=info
+      - --pidfile=/tmp/celerybeat.pid
+      - --schedule=/tmp/celerybeat-schedule
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - test -s /tmp/celerybeat.pid && kill -0 "$$(cat /tmp/celerybeat.pid)"
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    cpus: 0.25
+    mem_limit: 256m
+    mem_reservation: 128m
+    pids_limit: 96
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    pull_policy: never
+    profiles: [storage, full]
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${KLM_MINIO_ROOT_USER:-klmminio}
+      MINIO_ROOT_PASSWORD: ${KLM_MINIO_ROOT_PASSWORD:?Set KLM_MINIO_ROOT_PASSWORD to a local-only value}
+      MINIO_BROWSER: "on"
+      MINIO_UPDATE: "off"
+    volumes:
+      - minio_data:/data
+    ports:
+      - name: minio-api
+        target: 9000
+        published: ${KLM_MINIO_PORT:-9000}
+        host_ip: 127.0.0.1
+        protocol: tcp
+      - name: minio-console
+        target: 9001
+        published: ${KLM_MINIO_CONSOLE_PORT:-9001}
+        host_ip: 127.0.0.1
+        protocol: tcp
+    networks:
+      - klm_internal
+      - klm_loopback
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:9000/minio/health/live >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    cpus: 1.0
+    mem_limit: 768m
+    mem_reservation: 256m
+    pids_limit: 256
+    logging: *rotated-logs
+    stop_grace_period: 30s
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    pull_policy: never
+    profiles: [storage, full]
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${KLM_MINIO_ROOT_USER:-klmminio}
+      MINIO_ROOT_PASSWORD: ${KLM_MINIO_ROOT_PASSWORD:?Set KLM_MINIO_ROOT_PASSWORD to a local-only value}
+      MC_CONFIG_DIR: /tmp/mc
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - >-
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD";
+        mc mb --ignore-existing local/klm-hub-documents;
+        mc mb --ignore-existing local/klm-hub-public-assets;
+        mc anonymous set none local/klm-hub-documents;
+        mc anonymous set none local/klm-hub-public-assets
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+    networks:
+      - klm_internal
+    cpus: 0.25
+    mem_limit: 128m
+    mem_reservation: 64m
+    pids_limit: 64
+    logging: *rotated-logs
+
+  mailpit:
+    image: axllent/mailpit:v1.27.0
+    pull_policy: never
+    profiles: [mail, full]
+    restart: unless-stopped
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: "500"
+      MP_SMTP_BIND_ADDR: 0.0.0.0:1025
+      MP_UI_BIND_ADDR: 0.0.0.0:8025
+    volumes:
+      - mailpit_data:/data
+    ports:
+      - name: smtp
+        target: 1025
+        published: ${KLM_MAILPIT_SMTP_PORT:-1025}
+        host_ip: 127.0.0.1
+        protocol: tcp
+      - name: mailpit-ui
+        target: 8025
+        published: ${KLM_MAILPIT_UI_PORT:-8025}
+        host_ip: 127.0.0.1
+        protocol: tcp
+    networks:
+      - klm_internal
+      - klm_loopback
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+    cpus: 0.5
+    mem_limit: 256m
+    mem_reservation: 64m
+    pids_limit: 128
+    logging: *rotated-logs
+    stop_grace_period: 15s
+
+  fake-provider:
+    image: klm/fake-provider:1.0.0-local
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: docker/fake-provider/Dockerfile
+      args:
+        PYTHON_IMAGE: python:3.12.13-slim-bookworm
+    profiles: [fake, full]
+    restart: unless-stopped
+    environment:
+      KLM_FAKE_PROVIDER_MODEL: klm-fake-v1
+      KLM_FAKE_PROVIDER_RESPONSE: Local deterministic simulation.
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      ALL_PROXY: ""
+      NO_PROXY: "*"
+    ports:
+      - name: fake-provider
+        target: 8080
+        published: ${KLM_FAKE_PROVIDER_PORT:-8089}
+        host_ip: 127.0.0.1
+        protocol: tcp
+    networks:
+      - klm_internal
+      - klm_loopback
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).read()
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    init: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,mode=1777
+    cpus: 0.25
+    mem_limit: 128m
+    mem_reservation: 64m
+    pids_limit: 64
+    logging: *rotated-logs
+    stop_grace_period: 10s
+
+  proxy:
+    image: klm/legal-hub-frontend:p4-local
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        NODE_IMAGE: node:24.18.0-alpine3.22
+        NGINX_IMAGE: nginx:1.29.5-alpine
+        VITE_API_URL: ""
+        VITE_META_APP_ID: ""
+        VITE_META_CONFIG_ID: ""
+        VITE_META_SOLUTION_ID: ""
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - name: web
+        target: 8080
+        published: ${KLM_PROXY_PORT:-8080}
+        host_ip: 127.0.0.1
+        protocol: tcp
+    networks:
+      - klm_internal
+      - klm_loopback
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    user: "101:101"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    init: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    cpus: 0.5
+    mem_limit: 256m
+    mem_reservation: 64m
+    pids_limit: 128
+    logging: *rotated-logs
+    stop_grace_period: 15s
+
+volumes:
+  postgres_data:
+  redis_data:
+  local_object_data:
+  minio_data:
+  mailpit_data:
+
+networks:
+  klm_internal:
+    driver: bridge
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+  klm_loopback:
+    driver: bridge
+    internal: false
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "false"

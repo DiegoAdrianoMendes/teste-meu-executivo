@@ -1,0 +1,7 @@
+**
+
+!docker/
+!docker/oss/
+!docker/oss/chattermate/
+!docker/oss/chattermate/postgres/
+!docker/oss/chattermate/postgres/init-vector.sql

@@ -1,0 +1,32 @@
+diff --git a/core/security.py b/core/security.py
+index 1df94a8..abf3851 100644
+--- a/core/security.py
++++ b/core/security.py
+@@ -39,18 +39,21 @@ def get_or_create_key():
+     """Get encryption key from environment variable or generate a new one"""
+     env_key = os.getenv('ENCRYPTION_KEY')
+     if env_key:
+         try:
+-            # Try to decode the base64 key
+-            return base64.b64decode(env_key)
+-        except Exception as e:
++            # Fernet expects the URL-safe base64 representation itself, not
++            # the 32 decoded bytes. Validate before returning it.
++            key = env_key.encode('ascii')
++            Fernet(key)
++            return key
++        except (ValueError, UnicodeEncodeError) as e:
+             logger.error(f"Invalid encryption key format: {str(e)}")
+-    
++
+     # Generate new key if not found in env
+     key = Fernet.generate_key()
+-    # Convert to base64 string for easy env var storage
+-    env_key = base64.b64encode(key).decode()
+-    logger.info(f"Generated new encryption key. Please set ENCRYPTION_KEY={env_key} in your environment")
++    # Never print key material. The overlay preflight requires an explicit key,
++    # but retain upstream's fallback for direct library use.
++    logger.warning("Generated an ephemeral encryption key because ENCRYPTION_KEY is unset or invalid")
+     return key
+ 
+ # Initialize Fernet with key

@@ -1,0 +1,64 @@
+{
+  "_fixture_metadata": {
+    "descricao": "Fixture do formato de resposta de api-publica.datajud.cnj.jus.br/api_publica_<alias>/_search, usada pelo worker em modo simulado. Não é captura de chamada real. Formato conferido contra a wiki oficial (exemplo 1) em 03/09/2026: _id é identificador de documento no formato TRIBUNAL_GRAU_..._<20 dígitos>, nunca o número CNJ; a chave de negócio é _source.numeroProcesso, com 20 dígitos; há um documento por grau, com dataHoraUltimaAtualizacao.",
+    "fonte": "https://api-publica.datajud.cnj.jus.br/"
+  },
+  "took": 4,
+  "hits": {
+    "total": {
+      "value": 2,
+      "relation": "eq"
+    },
+    "hits": [
+      {
+        "_id": "TJDFT_G2_00012343720268070001",
+        "_source": {
+          "numeroProcesso": "00012343720268070001",
+          "tribunal": "TJDFT",
+          "grau": "G2",
+          "dataAjuizamento": "2026-03-10T00:00:00.000Z",
+          "dataHoraUltimaAtualizacao": "2026-06-01T10:00:00.000Z",
+          "movimentos": [
+            {
+              "codigo": 26,
+              "nome": "Distribuição",
+              "dataHora": "2026-06-01T09:00:00.000Z"
+            }
+          ]
+        }
+      },
+      {
+        "_id": "TJDFT_G1_00012343720268070001",
+        "_source": {
+          "numeroProcesso": "00012343720268070001",
+          "tribunal": "TJDFT",
+          "grau": "G1",
+          "dataAjuizamento": "2026-03-10T00:00:00.000Z",
+          "movimentos": [
+            {
+              "codigo": 26,
+              "nome": "Distribuição",
+              "dataHora": "2026-03-10T09:15:00.000Z"
+            },
+            {
+              "codigo": 60,
+              "nome": "Expedição de citação",
+              "dataHora": "2026-05-02T14:30:00.000Z"
+            },
+            {
+              "codigo": 246,
+              "nome": "Juntada de Petição",
+              "dataHora": "2026-07-20T11:00:00.000Z"
+            },
+            {
+              "codigo": 51,
+              "nome": "Decisão",
+              "dataHora": "2026-07-20T16:45:00.000Z"
+            }
+          ],
+          "dataHoraUltimaAtualizacao": "2026-07-20T17:00:00.000Z"
+        }
+      }
+    ]
+  }
+}

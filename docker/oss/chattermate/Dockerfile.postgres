@@ -1,0 +1,12 @@
+# syntax=docker/dockerfile:1.7
+
+FROM pgvector/pgvector:0.8.1-pg16
+
+ARG CHATTERMATE_VERSION=1.0.14
+
+LABEL org.opencontainers.image.title="ChatterMate PostgreSQL pgvector (KLM local overlay)" \
+      org.opencontainers.image.version="${CHATTERMATE_VERSION}" \
+      org.opencontainers.image.source="https://github.com/chattermate/chattermate.chat" \
+      org.opencontainers.image.licenses="Apache-2.0"
+
+COPY docker/oss/chattermate/postgres/init-vector.sql /docker-entrypoint-initdb.d/10-chattermate-vector.sql

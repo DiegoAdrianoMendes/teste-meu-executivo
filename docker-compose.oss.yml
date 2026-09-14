@@ -1,0 +1,1050 @@
+name: klm-oss-local
+
+x-chatwoot-environment: &chatwoot-environment
+  ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY: ${KLM_OSS_CHATWOOT_ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY:?run_scripts_start_oss_sidecars}
+  ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT: ${KLM_OSS_CHATWOOT_ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT:?run_scripts_start_oss_sidecars}
+  ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY: ${KLM_OSS_CHATWOOT_ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY:?run_scripts_start_oss_sidecars}
+  ACTIVE_STORAGE_SERVICE: local
+  BUNDLE_FROZEN: "true"
+  CW_API_ONLY_SERVER: "false"
+  CONVERSATION_MESSAGE_PER_MINUTE_LIMIT: "5000"
+  DISABLE_TELEMETRY: "true"
+  DISABLE_GRAVATAR: "true"
+  ENABLE_ACCOUNT_SIGNUP: "false"
+  ENABLE_PUSH_RELAY_SERVER: "false"
+  FORCE_SSL: "false"
+  FRONTEND_URL: http://127.0.0.1:${KLM_OSS_CHATWOOT_PORT:-3100}
+  INSTALLATION_ENV: docker
+  LOG_LEVEL: info
+  MAILER_SENDER_EMAIL: KLM Local <no-reply@localhost.invalid>
+  NODE_ENV: production
+  POSTGRES_DATABASE: chatwoot
+  POSTGRES_HOST: chatwoot-postgres
+  POSTGRES_PASSWORD: ${KLM_OSS_CHATWOOT_POSTGRES_PASSWORD:?run_scripts_start_oss_sidecars}
+  POSTGRES_PORT: "5432"
+  POSTGRES_USERNAME: chatwoot
+  RAILS_ENV: production
+  RAILS_LOG_TO_STDOUT: "true"
+  RAILS_SERVE_STATIC_FILES: "true"
+  REDIS_PASSWORD: ${KLM_OSS_CHATWOOT_REDIS_PASSWORD:?run_scripts_start_oss_sidecars}
+  REDIS_URL: redis://:${KLM_OSS_CHATWOOT_REDIS_PASSWORD:?run_scripts_start_oss_sidecars}@chatwoot-redis:6379/0
+  SAFE_FETCH_ALLOW_PRIVATE_NETWORK: "false"
+  SECRET_KEY_BASE: ${KLM_OSS_CHATWOOT_SECRET_KEY_BASE:?run_scripts_start_oss_sidecars}
+  TZ: ${KLM_OSS_TIMEZONE:-America/Sao_Paulo}
+
+x-chatwoot-service: &chatwoot-service
+  image: chatwoot/chatwoot:v4.15.1
+  profiles: [channels]
+  environment: *chatwoot-environment
+  volumes:
+    - chatwoot-storage:/app/storage
+  networks:
+    - klm-oss-local
+  labels:
+    com.klm.runtime: oss-local
+    com.klm.upstream: chatwoot
+    com.klm.upstream.version: 4.15.1
+
+x-chattermate-environment: &chattermate-environment
+  APP_BASE_URL: http://127.0.0.1:${KLM_OSS_CHATTERMATE_PORT:-3300}
+  BACKEND_URL: http://127.0.0.1:${KLM_OSS_CHATTERMATE_PORT:-3300}
+  CONVERSATION_SECRET_KEY: ${KLM_OSS_CHATTERMATE_CONVERSATION_SECRET:?run_scripts_start_oss_sidecars}
+  CORS_ORIGINS: '["http://127.0.0.1:${KLM_OSS_CHATTERMATE_PORT:-3300}","http://localhost:${KLM_OSS_CHATTERMATE_PORT:-3300}"]'
+  DATABASE_URL: postgresql+psycopg://chattermate:${KLM_OSS_CHATTERMATE_POSTGRES_PASSWORD:?run_scripts_start_oss_sidecars}@chattermate-postgres:5432/chattermate
+  EMBEDDING_MAX_WORKERS: "2"
+  EMBEDDING_SEQUENTIAL_FALLBACK: "true"
+  EMBEDDING_SINGLE_THREADED: "true"
+  ENABLE_IMMEDIATE_EMBEDDING: "true"
+  ENCRYPTION_KEY: ${KLM_OSS_CHATTERMATE_ENCRYPTION_KEY:?run_scripts_start_oss_sidecars}
+  ENVIRONMENT: production
+  FIREBASE_CREDENTIALS: ${KLM_OSS_CHATTERMATE_FIREBASE_CREDENTIALS:-}
+  FRONTEND_URL: http://127.0.0.1:${KLM_OSS_CHATTERMATE_PORT:-3300}
+  GRACEFUL_TIMEOUT: "30"
+  HELP_CENTER_BASE_DOMAIN: chattermate.localhost
+  HELP_CENTER_CNAME_TARGET: chattermate.localhost
+  HF_HUB_DISABLE_TELEMETRY: "1"
+  JIRA_CLIENT_ID: ${KLM_OSS_CHATTERMATE_JIRA_CLIENT_ID:-}
+  JIRA_CLIENT_SECRET: ${KLM_OSS_CHATTERMATE_JIRA_CLIENT_SECRET:-}
+  JIRA_REDIRECT_URI: http://127.0.0.1:${KLM_OSS_CHATTERMATE_PORT:-3300}/api/v1/jira/callback
+  JWT_ALGORITHM: HS256
+  JWT_SECRET_KEY: ${KLM_OSS_CHATTERMATE_JWT_SECRET:?run_scripts_start_oss_sidecars}
+  KB_MAX_WORKERS: "2"
+  KEEP_ALIVE: "5"
+  LOG_LEVEL: info
+  META_APP_ID: ${KLM_OSS_CHATTERMATE_META_APP_ID:-}
+  META_APP_SECRET: ${KLM_OSS_CHATTERMATE_META_APP_SECRET:-}
+  META_WEBHOOK_VERIFY_TOKEN: ${KLM_OSS_CHATTERMATE_META_WEBHOOK_VERIFY_TOKEN:-}
+  REDIS_ENABLED: "true"
+  REDIS_URL: redis://:${KLM_OSS_CHATTERMATE_REDIS_PASSWORD:?run_scripts_start_oss_sidecars}@chattermate-redis:6379/0
+  S3_FILE_STORAGE: "false"
+  SHOPIFY_API_KEY: ${KLM_OSS_CHATTERMATE_SHOPIFY_API_KEY:-}
+  SHOPIFY_API_SECRET: ${KLM_OSS_CHATTERMATE_SHOPIFY_API_SECRET:-}
+  SLACK_CLIENT_ID: ${KLM_OSS_CHATTERMATE_SLACK_CLIENT_ID:-}
+  SLACK_CLIENT_SECRET: ${KLM_OSS_CHATTERMATE_SLACK_CLIENT_SECRET:-}
+  SLACK_REDIRECT_URI: http://127.0.0.1:${KLM_OSS_CHATTERMATE_PORT:-3300}/api/v1/channels/slack/callback
+  SLACK_SIGNING_SECRET: ${KLM_OSS_CHATTERMATE_SLACK_SIGNING_SECRET:-}
+  TIMEOUT: "120"
+  TOKENIZERS_PARALLELISM: "false"
+  TZ: ${KLM_OSS_TIMEZONE:-America/Sao_Paulo}
+  VERIFY_SSL_CERTIFICATES: "true"
+  VITE_WIDGET_URL: http://127.0.0.1:${KLM_OSS_CHATTERMATE_PORT:-3300}
+  WORKERS: "1"
+  CHATTERMATE_STARTUP_TIMEOUT: ${KLM_OSS_START_TIMEOUT:-1200}
+
+x-chattermate-backend: &chattermate-backend
+  image: klm/chattermate-backend:1.0.14-local
+  build:
+    context: .
+    dockerfile: docker/oss/chattermate/Dockerfile.backend
+  profiles: [automation]
+  environment: *chattermate-environment
+  read_only: true
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=256m,mode=1777
+    - /app/logs:rw,noexec,nosuid,size=64m,mode=0750,uid=10001,gid=10001
+  labels:
+    com.klm.runtime: oss-local
+    com.klm.upstream: chattermate
+    com.klm.upstream.version: 1.0.14
+
+x-bottlecrm-environment: &bottlecrm-environment
+  ADMIN_EMAIL: ${KLM_OSS_BOTTLECRM_ADMIN_EMAIL:?run_scripts_start_oss_sidecars}
+  ADMIN_PASSWORD: ${KLM_OSS_BOTTLECRM_ADMIN_PASSWORD:?run_scripts_start_oss_sidecars}
+  ALLOWED_HOSTS: localhost,127.0.0.1,bottlecrm-backend
+  CELERY_BROKER_URL: redis://:${KLM_OSS_BOTTLECRM_REDIS_PASSWORD:?run_scripts_start_oss_sidecars}@bottlecrm-redis:6379/0
+  CELERY_RESULT_BACKEND: redis://:${KLM_OSS_BOTTLECRM_REDIS_PASSWORD:?run_scripts_start_oss_sidecars}@bottlecrm-redis:6379/0
+  CORS_ALLOW_ALL: "False"
+  CORS_ALLOWED_ORIGINS: http://127.0.0.1:${KLM_OSS_BOTTLECRM_PORT:-3400},http://localhost:${KLM_OSS_BOTTLECRM_PORT:-3400}
+  CSRF_TRUSTED_ORIGINS: http://127.0.0.1:${KLM_OSS_BOTTLECRM_PORT:-3400},http://localhost:${KLM_OSS_BOTTLECRM_PORT:-3400}
+  DBHOST: bottlecrm-postgres
+  DBNAME: crm_db
+  DBPASSWORD: ${KLM_OSS_BOTTLECRM_POSTGRES_PASSWORD:?run_scripts_start_oss_sidecars}
+  DBPORT: "5432"
+  DBUSER: crm_user
+  DEBUG: "False"
+  DEFAULT_FROM_EMAIL: noreply@localhost.invalid
+  DOMAIN_NAME: http://127.0.0.1:${KLM_OSS_BOTTLECRM_PORT:-3400}
+  EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+  ENV_TYPE: dev
+  FRONTEND_URL: http://127.0.0.1:${KLM_OSS_BOTTLECRM_PORT:-3400}
+  GOOGLE_CLIENT_ID: ${KLM_OSS_BOTTLECRM_GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${KLM_OSS_BOTTLECRM_GOOGLE_CLIENT_SECRET:-}
+  GOOGLE_REDIRECT_URI: http://127.0.0.1:${KLM_OSS_BOTTLECRM_PORT:-3400}/login
+  KLM_BOTTLECRM_BRIDGE_SECRET: ${KLM_OSS_BOTTLECRM_BRIDGE_SECRET:?run_scripts_start_oss_sidecars}
+  KLM_BOTTLECRM_LOCAL_MODE: "true"
+  KLM_OSS_BOTTLECRM_ADMIN_NAME: ${KLM_OSS_BOTTLECRM_ADMIN_NAME:?run_scripts_start_oss_sidecars}
+  SECRET_KEY: ${KLM_OSS_BOTTLECRM_SECRET_KEY:?run_scripts_start_oss_sidecars}
+  SWAGGER_ROOT_URL: http://127.0.0.1:${KLM_OSS_BOTTLECRM_PORT:-3400}
+  TZ: ${KLM_OSS_TIMEZONE:-America/Sao_Paulo}
+  BOTTLECRM_STARTUP_TIMEOUT: ${KLM_OSS_START_TIMEOUT:-1200}
+
+x-bottlecrm-backend: &bottlecrm-backend
+  image: klm/bottlecrm-backend:3ab79d75-local
+  build:
+    context: .
+    dockerfile: docker/oss/bottlecrm/Dockerfile.backend
+  profiles: [crm]
+  environment: *bottlecrm-environment
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  labels:
+    com.klm.runtime: oss-local
+    com.klm.upstream: bottlecrm
+    com.klm.upstream.commit: 3ab79d75ece005a414d9d3ef729b7240545d1b41
+
+services:
+  chatwoot-postgres:
+    image: pgvector/pgvector:0.8.1-pg16
+    profiles: [channels]
+    restart: unless-stopped
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_DB: chatwoot
+      POSTGRES_PASSWORD: ${KLM_OSS_CHATWOOT_POSTGRES_PASSWORD:?run_scripts_start_oss_sidecars}
+      POSTGRES_USER: chatwoot
+      TZ: ${KLM_OSS_TIMEZONE:-America/Sao_Paulo}
+    volumes:
+      - chatwoot-postgres-data:/var/lib/postgresql/data
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+          && psql -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -tAc
+          "SELECT 1 FROM pg_available_extensions WHERE name = 'vector'" | grep -qx 1
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    stop_grace_period: 30s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: chatwoot
+
+  chatwoot-redis:
+    image: redis:7.4.2-alpine
+    profiles: [channels]
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${KLM_OSS_CHATWOOT_REDIS_PASSWORD:?run_scripts_start_oss_sidecars}
+      TZ: ${KLM_OSS_TIMEZONE:-America/Sao_Paulo}
+    command:
+      - /bin/sh
+      - -ec
+      - exec redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"
+    volumes:
+      - chatwoot-redis-data:/data
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - REDISCLI_AUTH="$${REDIS_PASSWORD}" redis-cli --no-auth-warning ping | grep -qx PONG
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    stop_grace_period: 20s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: chatwoot
+
+  chatwoot-init:
+    <<: *chatwoot-service
+    restart: "no"
+    depends_on:
+      chatwoot-postgres:
+        condition: service_healthy
+      chatwoot-redis:
+        condition: service_healthy
+    entrypoint: [docker/entrypoints/rails.sh]
+    command: [bundle, exec, rails, db:chatwoot_prepare]
+
+  chatwoot-bootstrap:
+    <<: *chatwoot-service
+    restart: "no"
+    depends_on:
+      chatwoot-init:
+        condition: service_completed_successfully
+      chatwoot-postgres:
+        condition: service_healthy
+      chatwoot-redis:
+        condition: service_healthy
+    environment:
+      <<: *chatwoot-environment
+      KLM_OSS_CHATWOOT_ACCOUNT_ID: ${KLM_OSS_CHATWOOT_ACCOUNT_ID:?run_scripts_start_oss_sidecars}
+      KLM_OSS_CHATWOOT_ADMIN_EMAIL: ${KLM_OSS_CHATWOOT_ADMIN_EMAIL:?run_scripts_start_oss_sidecars}
+      KLM_OSS_CHATWOOT_ADMIN_NAME: ${KLM_OSS_CHATWOOT_ADMIN_NAME:?run_scripts_start_oss_sidecars}
+      KLM_OSS_CHATWOOT_ADMIN_PASSWORD: ${KLM_OSS_CHATWOOT_ADMIN_PASSWORD:?run_scripts_start_oss_sidecars}
+      KLM_OSS_CHATWOOT_API_ACCESS_TOKEN: ${KLM_OSS_CHATWOOT_API_ACCESS_TOKEN:?run_scripts_start_oss_sidecars}
+      KLM_OSS_CHATWOOT_INBOX_ID: ${KLM_OSS_CHATWOOT_INBOX_ID:?run_scripts_start_oss_sidecars}
+      KLM_OSS_CHATWOOT_USER_ID: ${KLM_OSS_CHATWOOT_USER_ID:?run_scripts_start_oss_sidecars}
+      KLM_OSS_CHATWOOT_WEBHOOK_SECRET: ${KLM_OSS_CHATWOOT_WEBHOOK_SECRET:?run_scripts_start_oss_sidecars}
+      KLM_OSS_KLM_WORKSPACE_ID: ${KLM_OSS_KLM_WORKSPACE_ID:-}
+    entrypoint: [docker/entrypoints/rails.sh]
+    command: [bundle, exec, rails, runner, /bootstrap/chatwoot-bootstrap.rb]
+    volumes:
+      - chatwoot-storage:/app/storage
+      - ./docker/oss/chatwoot-bootstrap.rb:/bootstrap/chatwoot-bootstrap.rb:ro
+
+  chatwoot-web:
+    <<: *chatwoot-service
+    restart: unless-stopped
+    depends_on:
+      chatwoot-bootstrap:
+        condition: service_completed_successfully
+      chatwoot-postgres:
+        condition: service_healthy
+      chatwoot-redis:
+        condition: service_healthy
+    entrypoint: [docker/entrypoints/rails.sh]
+    command: [bundle, exec, rails, server, -p, "3000", -b, 0.0.0.0]
+    healthcheck:
+      test:
+        - CMD
+        - ruby
+        - -rnet/http
+        - -e
+        - 'response = Net::HTTP.get_response(URI("http://127.0.0.1:3000/health")); exit(response.is_a?(Net::HTTPSuccess) ? 0 : 1)'
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    stop_grace_period: 30s
+
+  chatwoot-gateway:
+    image: nginx:1.29.5-alpine
+    profiles: [channels]
+    restart: unless-stopped
+    depends_on:
+      chatwoot-web:
+        condition: service_healthy
+    user: "101:101"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    configs:
+      - source: chatwoot-gateway-config
+        target: /etc/nginx/nginx.conf
+        mode: 0444
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+    ports:
+      - target: 8080
+        published: ${KLM_OSS_CHATWOOT_PORT:-3100}
+        host_ip: 127.0.0.1
+        protocol: tcp
+    networks:
+      - klm-oss-local
+      - klm-oss-loopback
+    healthcheck:
+      test: [CMD-SHELL, "wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: chatwoot
+      com.klm.network-policy: loopback-gateway-no-secrets
+
+  chatwoot-worker:
+    <<: *chatwoot-service
+    restart: unless-stopped
+    depends_on:
+      chatwoot-bootstrap:
+        condition: service_completed_successfully
+      chatwoot-postgres:
+        condition: service_healthy
+      chatwoot-redis:
+        condition: service_healthy
+    environment:
+      <<: *chatwoot-environment
+      SAFE_FETCH_ALLOW_PRIVATE_NETWORK: "true"
+    command: [bundle, exec, sidekiq, -C, config/sidekiq.yml]
+    healthcheck:
+      test: [CMD-SHELL, "kill -0 1 && grep -q sidekiq /proc/1/cmdline"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    stop_grace_period: 60s
+
+  rocket-mongo:
+    image: mongodb/mongodb-community-server:6.0.26-ubi8
+    profiles: [collaboration]
+    restart: unless-stopped
+    command: [mongod, --replSet, rs0, --bind_ip_all, --port, "27017"]
+    environment:
+      TZ: ${KLM_OSS_TIMEZONE:-America/Sao_Paulo}
+    volumes:
+      - rocket-mongo-data:/data/db
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --quiet --host 127.0.0.1:27017
+          --eval 'quit(db.hello().isWritablePrimary ? 0 : 1)'
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 5s
+    stop_grace_period: 60s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: rocketchat
+
+  rocket-mongo-init:
+    image: mongodb/mongodb-community-server:6.0.26-ubi8
+    profiles: [collaboration]
+    restart: "no"
+    depends_on:
+      rocket-mongo:
+        condition: service_started
+    entrypoint: [/bin/bash, -ec]
+    command:
+      - |
+        until mongosh --quiet --host rocket-mongo:27017 --eval "db.adminCommand({ ping: 1 }).ok" | grep -qx 1; do
+          sleep 2
+        done
+        mongosh --quiet --host rocket-mongo:27017 --eval '
+          try {
+            const config = rs.conf();
+            if (config._id !== "rs0" || config.members.length !== 1 || config.members[0].host !== "rocket-mongo:27017") {
+              throw new Error("existing replica set does not match the KLM local topology");
+            }
+          } catch (error) {
+            if (error.code === 94 || error.codeName === "NotYetInitialized") {
+              const result = rs.initiate({_id: "rs0", members: [{_id: 0, host: "rocket-mongo:27017"}]});
+              if (!result.ok) throw new Error(tojson(result));
+            } else {
+              throw error;
+            }
+          }
+        '
+        until mongosh --quiet --host rocket-mongo:27017 --eval 'quit(db.hello().isWritablePrimary ? 0 : 1)'; do
+          sleep 2
+        done
+    networks:
+      - klm-oss-local
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: rocketchat
+
+  rocketchat:
+    image: registry.rocket.chat/rocketchat/rocket.chat:6.13.1
+    platform: linux/amd64
+    profiles: [collaboration]
+    restart: unless-stopped
+    depends_on:
+      rocket-mongo:
+        condition: service_healthy
+      rocket-mongo-init:
+        condition: service_completed_successfully
+    environment:
+      ADMIN_EMAIL: ${KLM_OSS_ROCKETCHAT_ADMIN_EMAIL:?run_scripts_start_oss_sidecars}
+      ADMIN_EMAIL_VERIFIED: "true"
+      ADMIN_NAME: ${KLM_OSS_ROCKETCHAT_ADMIN_NAME:?run_scripts_start_oss_sidecars}
+      ADMIN_PASS: ${KLM_OSS_ROCKETCHAT_ADMIN_PASSWORD:?run_scripts_start_oss_sidecars}
+      ADMIN_USERNAME: ${KLM_OSS_ROCKETCHAT_ADMIN_USERNAME:?run_scripts_start_oss_sidecars}
+      DEPLOY_METHOD: docker
+      EXIT_UNHANDLEDPROMISEREJECTION: "true"
+      MONGO_OPLOG_URL: mongodb://rocket-mongo:27017/local?replicaSet=rs0
+      MONGO_URL: mongodb://rocket-mongo:27017/rocketchat?replicaSet=rs0
+      NODE_ENV: production
+      OVERWRITE_SETTING_Accounts_AllowAnonymousRead: "false"
+      OVERWRITE_SETTING_Accounts_RegistrationForm: Disabled
+      OVERWRITE_SETTING_Cloud_Service_Agree_PrivacyTerms: "false"
+      OVERWRITE_SETTING_Push_enable_gateway: "false"
+      OVERWRITE_SETTING_Register_Server: "false"
+      OVERWRITE_SETTING_Show_Setup_Wizard: completed
+      OVERWRITE_SETTING_Statistics_reporting: "false"
+      PORT: "3000"
+      ROOT_URL: http://127.0.0.1:${KLM_OSS_ROCKETCHAT_PORT:-3200}
+      TZ: ${KLM_OSS_TIMEZONE:-America/Sao_Paulo}
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          require('http').get('http://127.0.0.1:3000/livez',
+          response => process.exit(response.statusCode === 200 ? 0 : 1))
+          .on('error', () => process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+    stop_grace_period: 60s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.runtime.policy: local-compatibility
+      com.klm.runtime.version: 6.13.1
+      com.klm.upstream: rocketchat
+      com.klm.reference.version: 8.6.1
+
+  rocket-bootstrap:
+    image: python:3.12.13-alpine3.22
+    profiles: [collaboration]
+    restart: "no"
+    depends_on:
+      rocketchat:
+        condition: service_healthy
+    environment:
+      KLM_OSS_KLM_WORKSPACE_ID: ${KLM_OSS_KLM_WORKSPACE_ID:-}
+      KLM_OSS_ROCKETCHAT_ADMIN_PASSWORD: ${KLM_OSS_ROCKETCHAT_ADMIN_PASSWORD:?run_scripts_start_oss_sidecars}
+      KLM_OSS_ROCKETCHAT_ADMIN_USERNAME: ${KLM_OSS_ROCKETCHAT_ADMIN_USERNAME:?run_scripts_start_oss_sidecars}
+      KLM_OSS_ROCKETCHAT_WEBHOOK_TOKEN: ${KLM_OSS_ROCKETCHAT_WEBHOOK_TOKEN:?run_scripts_start_oss_sidecars}
+    command: [python3, /bootstrap/rocketchat-bootstrap.py]
+    volumes:
+      - ./docker/oss/rocketchat-bootstrap.py:/bootstrap/rocketchat-bootstrap.py:ro
+    networks:
+      - klm-oss-local
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: rocketchat
+
+  rocket-gateway:
+    image: nginx:1.29.5-alpine
+    profiles: [collaboration]
+    restart: unless-stopped
+    depends_on:
+      rocket-bootstrap:
+        condition: service_completed_successfully
+    user: "101:101"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    configs:
+      - source: rocket-gateway-config
+        target: /etc/nginx/nginx.conf
+        mode: 0444
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+    ports:
+      - target: 8080
+        published: ${KLM_OSS_ROCKETCHAT_PORT:-3200}
+        host_ip: 127.0.0.1
+        protocol: tcp
+    networks:
+      - klm-oss-local
+      - klm-oss-loopback
+    healthcheck:
+      test: [CMD-SHELL, "wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/livez || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: rocketchat
+      com.klm.network-policy: loopback-gateway-no-secrets
+
+  chattermate-postgres:
+    image: klm/chattermate-postgres:1.0.14-local
+    build:
+      context: .
+      dockerfile: docker/oss/chattermate/Dockerfile.postgres
+    profiles: [automation]
+    restart: unless-stopped
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_DB: chattermate
+      POSTGRES_PASSWORD: ${KLM_OSS_CHATTERMATE_POSTGRES_PASSWORD:?run_scripts_start_oss_sidecars}
+      POSTGRES_USER: chattermate
+      TZ: ${KLM_OSS_TIMEZONE:-America/Sao_Paulo}
+    volumes:
+      - chattermate-postgres-data:/var/lib/postgresql/data
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+          && test "$$(psql -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -tAc
+          "SELECT count(*) FROM pg_extension WHERE extname = 'vector'")" = "1"
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+    stop_grace_period: 30s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: chattermate
+
+  chattermate-redis:
+    image: redis:7.4.2-alpine
+    profiles: [automation]
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${KLM_OSS_CHATTERMATE_REDIS_PASSWORD:?run_scripts_start_oss_sidecars}
+      TZ: ${KLM_OSS_TIMEZONE:-America/Sao_Paulo}
+    command:
+      - /bin/sh
+      - -ec
+      - exec redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"
+    volumes:
+      - chattermate-redis-data:/data
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - REDISCLI_AUTH="$${REDIS_PASSWORD}" redis-cli --no-auth-warning ping | grep -qx PONG
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+    stop_grace_period: 20s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: chattermate
+
+  chattermate-init:
+    <<: *chattermate-backend
+    restart: "no"
+    command: [migrate]
+    depends_on:
+      chattermate-postgres:
+        condition: service_healthy
+      chattermate-redis:
+        condition: service_healthy
+    volumes:
+      - chattermate-config:/app/config
+    networks:
+      - klm-oss-local
+
+  chattermate-api:
+    <<: *chattermate-backend
+    restart: unless-stopped
+    command: [api]
+    depends_on:
+      chattermate-init:
+        condition: service_completed_successfully
+      chattermate-postgres:
+        condition: service_healthy
+      chattermate-redis:
+        condition: service_healthy
+    volumes:
+      - chattermate-config:/app/config
+      - chattermate-uploads:/app/uploads
+      - chattermate-temp:/app/temp
+      - chattermate-model-cache:/app/.cache
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test: [CMD, python, /opt/chattermate/runtime_preflight.py, http-health, http://127.0.0.1:8000/health]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    stop_grace_period: 45s
+
+  chattermate-worker:
+    <<: *chattermate-backend
+    restart: unless-stopped
+    command: [worker]
+    depends_on:
+      chattermate-api:
+        condition: service_healthy
+      chattermate-init:
+        condition: service_completed_successfully
+      chattermate-postgres:
+        condition: service_healthy
+      chattermate-redis:
+        condition: service_healthy
+    volumes:
+      - chattermate-config:/app/config
+      - chattermate-uploads:/app/uploads
+      - chattermate-temp:/app/temp
+      - chattermate-model-cache:/app/.cache
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test: [CMD, python, /opt/chattermate/runtime_preflight.py, worker-health]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    stop_grace_period: 60s
+
+  chattermate-frontend:
+    image: klm/chattermate-frontend:1.0.14-local
+    build:
+      context: .
+      dockerfile: docker/oss/chattermate/Dockerfile.frontend
+    profiles: [automation]
+    restart: unless-stopped
+    environment:
+      VITE_FIREBASE_API_KEY: ${KLM_OSS_CHATTERMATE_FIREBASE_API_KEY:-}
+      VITE_FIREBASE_APP_ID: ${KLM_OSS_CHATTERMATE_FIREBASE_APP_ID:-}
+      VITE_FIREBASE_AUTH_DOMAIN: ${KLM_OSS_CHATTERMATE_FIREBASE_AUTH_DOMAIN:-}
+      VITE_FIREBASE_MEASUREMENT_ID: ${KLM_OSS_CHATTERMATE_FIREBASE_MEASUREMENT_ID:-}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${KLM_OSS_CHATTERMATE_FIREBASE_MESSAGING_SENDER_ID:-}
+      VITE_FIREBASE_PROJECT_ID: ${KLM_OSS_CHATTERMATE_FIREBASE_PROJECT_ID:-}
+      VITE_FIREBASE_STORAGE_BUCKET: ${KLM_OSS_CHATTERMATE_FIREBASE_STORAGE_BUCKET:-}
+      VITE_FIREBASE_VAPID_KEY: ${KLM_OSS_CHATTERMATE_FIREBASE_VAPID_KEY:-}
+      VITE_GOOGLE_FONTS_API_KEY: ${KLM_OSS_CHATTERMATE_GOOGLE_FONTS_API_KEY:-}
+      VITE_SHOPIFY_API_KEY: ${KLM_OSS_CHATTERMATE_SHOPIFY_API_KEY:-}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test: [CMD-SHELL, wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/healthz]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: chattermate
+      com.klm.upstream.version: 1.0.14
+
+  chattermate-bootstrap:
+    image: python:3.12.13-alpine3.22
+    profiles: [automation]
+    restart: "no"
+    depends_on:
+      chattermate-api:
+        condition: service_healthy
+    environment:
+      KLM_OSS_CHATTERMATE_ADMIN_EMAIL: ${KLM_OSS_CHATTERMATE_ADMIN_EMAIL:?run_scripts_start_oss_sidecars}
+      KLM_OSS_CHATTERMATE_ADMIN_NAME: ${KLM_OSS_CHATTERMATE_ADMIN_NAME:?run_scripts_start_oss_sidecars}
+      KLM_OSS_CHATTERMATE_ADMIN_PASSWORD: ${KLM_OSS_CHATTERMATE_ADMIN_PASSWORD:?run_scripts_start_oss_sidecars}
+    command: [python3, /bootstrap/bootstrap.py]
+    volumes:
+      - ./docker/oss/chattermate/bootstrap.py:/bootstrap/bootstrap.py:ro
+    networks:
+      - klm-oss-local
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: chattermate
+
+  chattermate-gateway:
+    image: klm/chattermate-gateway:1.0.14-local
+    build:
+      context: .
+      dockerfile: docker/oss/chattermate/Dockerfile.gateway
+    profiles: [automation]
+    restart: unless-stopped
+    depends_on:
+      chattermate-api:
+        condition: service_healthy
+      chattermate-bootstrap:
+        condition: service_completed_successfully
+      chattermate-frontend:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+    ports:
+      - target: 8080
+        published: ${KLM_OSS_CHATTERMATE_PORT:-3300}
+        host_ip: 127.0.0.1
+        protocol: tcp
+    networks:
+      - klm-oss-local
+      - klm-oss-loopback
+    healthcheck:
+      test: [CMD-SHELL, wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/healthz]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: chattermate
+      com.klm.upstream.version: 1.0.14
+      com.klm.network-policy: loopback-gateway-no-secrets
+
+  bottlecrm-postgres:
+    image: postgres:16.8-alpine
+    profiles: [crm]
+    restart: unless-stopped
+    environment:
+      BOTTLECRM_APP_PASSWORD: ${KLM_OSS_BOTTLECRM_POSTGRES_PASSWORD:?run_scripts_start_oss_sidecars}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_DB: crm_db
+      POSTGRES_PASSWORD: ${KLM_OSS_BOTTLECRM_POSTGRES_SUPERUSER_PASSWORD:?run_scripts_start_oss_sidecars}
+      POSTGRES_USER: postgres
+      TZ: ${KLM_OSS_TIMEZONE:-America/Sao_Paulo}
+    volumes:
+      - bottlecrm-postgres-data:/var/lib/postgresql/data
+      - ./docker/oss/bottlecrm/postgres/init-rls-user.sh:/docker-entrypoint-initdb.d/10-init-rls-user.sh:ro
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    stop_grace_period: 30s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: bottlecrm
+
+  bottlecrm-redis:
+    image: redis:7.4.2-alpine
+    profiles: [crm]
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${KLM_OSS_BOTTLECRM_REDIS_PASSWORD:?run_scripts_start_oss_sidecars}
+      TZ: ${KLM_OSS_TIMEZONE:-America/Sao_Paulo}
+    command:
+      - /bin/sh
+      - -ec
+      - exec redis-server --appendonly yes --requirepass "$${REDIS_PASSWORD}"
+    volumes:
+      - bottlecrm-redis-data:/data
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - REDISCLI_AUTH="$${REDIS_PASSWORD}" redis-cli --no-auth-warning ping | grep -qx PONG
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+    stop_grace_period: 20s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: bottlecrm
+
+  bottlecrm-init:
+    <<: *bottlecrm-backend
+    restart: "no"
+    command: [init]
+    depends_on:
+      bottlecrm-postgres:
+        condition: service_healthy
+      bottlecrm-redis:
+        condition: service_healthy
+    volumes:
+      - bottlecrm-media:/app/media
+      - bottlecrm-static:/app/staticfiles
+    networks:
+      - klm-oss-local
+
+  bottlecrm-backend:
+    <<: *bottlecrm-backend
+    restart: unless-stopped
+    command: [api]
+    depends_on:
+      bottlecrm-init:
+        condition: service_completed_successfully
+      bottlecrm-postgres:
+        condition: service_healthy
+      bottlecrm-redis:
+        condition: service_healthy
+    volumes:
+      - bottlecrm-media:/app/media
+      - bottlecrm-static:/app/staticfiles
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://127.0.0.1:8000/healthz/]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    stop_grace_period: 45s
+
+  bottlecrm-worker:
+    <<: *bottlecrm-backend
+    restart: unless-stopped
+    command: [worker]
+    depends_on:
+      bottlecrm-init:
+        condition: service_completed_successfully
+      bottlecrm-postgres:
+        condition: service_healthy
+      bottlecrm-redis:
+        condition: service_healthy
+    volumes:
+      - bottlecrm-media:/app/media
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "kill -0 1 && tr '\\000' ' ' < /proc/1/cmdline | grep -q 'celery .* worker'"
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    stop_grace_period: 60s
+
+  bottlecrm-beat:
+    <<: *bottlecrm-backend
+    restart: unless-stopped
+    command: [beat]
+    depends_on:
+      bottlecrm-init:
+        condition: service_completed_successfully
+      bottlecrm-postgres:
+        condition: service_healthy
+      bottlecrm-redis:
+        condition: service_healthy
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "kill -0 1 && tr '\\000' ' ' < /proc/1/cmdline | grep -q 'celery .* beat'"
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    stop_grace_period: 45s
+
+  bottlecrm-frontend:
+    image: klm/bottlecrm-frontend:3ab79d75-local
+    build:
+      context: .
+      dockerfile: docker/oss/bottlecrm/Dockerfile.frontend
+    profiles: [crm]
+    restart: unless-stopped
+    environment:
+      GOOGLE_CLIENT_ID: ${KLM_OSS_BOTTLECRM_GOOGLE_CLIENT_ID:-}
+      GOOGLE_LOGIN_DOMAIN: http://127.0.0.1:${KLM_OSS_BOTTLECRM_PORT:-3400}
+      HOST: 0.0.0.0
+      NODE_ENV: development
+      ORIGIN: http://127.0.0.1:${KLM_OSS_BOTTLECRM_PORT:-3400}
+      PORT: "3000"
+      PUBLIC_DJANGO_API_URL: http://bottlecrm-backend:8000
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - klm-oss-local
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          require('http').get('http://127.0.0.1:3000/login',
+          response => process.exit(response.statusCode < 500 ? 0 : 1))
+          .on('error', () => process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    stop_grace_period: 30s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: bottlecrm
+      com.klm.upstream.commit: 3ab79d75ece005a414d9d3ef729b7240545d1b41
+
+  bottlecrm-gateway:
+    image: klm/bottlecrm-gateway:3ab79d75-local
+    build:
+      context: .
+      dockerfile: docker/oss/bottlecrm/Dockerfile.gateway
+    profiles: [crm]
+    restart: unless-stopped
+    depends_on:
+      bottlecrm-backend:
+        condition: service_healthy
+      bottlecrm-frontend:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+    ports:
+      - target: 8080
+        published: ${KLM_OSS_BOTTLECRM_PORT:-3400}
+        host_ip: 127.0.0.1
+        protocol: tcp
+    networks:
+      - klm-oss-local
+      - klm-oss-loopback
+    healthcheck:
+      test: [CMD-SHELL, wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/healthz]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.upstream: bottlecrm
+      com.klm.upstream.commit: 3ab79d75ece005a414d9d3ef729b7240545d1b41
+      com.klm.network-policy: loopback-gateway-no-secrets
+
+configs:
+  chatwoot-gateway-config:
+    file: ./docker/oss/chatwoot-nginx.conf
+  rocket-gateway-config:
+    file: ./docker/oss/rocket-nginx.conf
+
+volumes:
+  chatwoot-postgres-data:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: chatwoot-postgres
+  chatwoot-redis-data:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: chatwoot-redis
+  chatwoot-storage:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: chatwoot-storage
+  rocket-mongo-data:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: rocketchat-mongo
+  chattermate-config:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: chattermate-runtime-config
+  chattermate-model-cache:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: chattermate-model-cache
+  chattermate-postgres-data:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: chattermate-postgres
+  chattermate-redis-data:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: chattermate-redis
+  chattermate-temp:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: chattermate-temp
+  chattermate-uploads:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: chattermate-uploads
+  bottlecrm-media:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: bottlecrm-media
+  bottlecrm-postgres-data:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: bottlecrm-postgres
+  bottlecrm-redis-data:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: bottlecrm-redis
+  bottlecrm-static:
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.data: bottlecrm-static
+
+networks:
+  klm-oss-local:
+    name: klm-oss-local
+    internal: true
+    attachable: false
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.network-policy: no-external-egress
+  klm-oss-loopback:
+    name: klm-oss-loopback
+    internal: false
+    attachable: false
+    labels:
+      com.klm.runtime: oss-local
+      com.klm.network-policy: host-loopback-publication-only

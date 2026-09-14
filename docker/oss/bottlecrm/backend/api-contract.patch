@@ -1,0 +1,81 @@
+diff --git a/contacts/views.py b/contacts/views.py
+--- a/contacts/views.py
++++ b/contacts/views.py
+@@ -250,7 +250,11 @@ class ContactsListView(APIView, LimitOffsetPagination):
+             attachment.org = request.profile.org
+             attachment.save()
+         return Response(
+-            {"error": False, "message": "Contact created Successfuly"},
++            {
++                "error": False,
++                "message": "Contact created Successfuly",
++                "id": str(contact_obj.id),
++            },
+             status=status.HTTP_200_OK,
+         )
+ 
+diff --git a/accounts/views.py b/accounts/views.py
+--- a/accounts/views.py
++++ b/accounts/views.py
+@@ -250,7 +250,11 @@ class AccountsListView(APIView, LimitOffsetPagination):
+                 str(request.profile.org.id),
+             )
+             return Response(
+-                {"error": False, "message": "Account Created Successfully"},
++                {
++                    "error": False,
++                    "message": "Account Created Successfully",
++                    "id": str(account_object.id),
++                },
+                 status=status.HTTP_200_OK,
+             )
+         return Response(
+
+diff --git a/leads/views/lead_views.py b/leads/views/lead_views.py
+--- a/leads/views/lead_views.py
++++ b/leads/views/lead_views.py
+@@ -361,7 +361,11 @@ class LeadListView(APIView, LimitOffsetPagination):
+                     status=status.HTTP_200_OK,
+                 )
+             return Response(
+-                {"error": False, "message": "Lead Created Successfully"},
++                {
++                    "error": False,
++                    "message": "Lead Created Successfully",
++                    "id": str(lead_obj.id),
++                },
+                 status=status.HTTP_200_OK,
+             )
+         return Response(
+diff --git a/opportunity/views/opportunity_views.py b/opportunity/views/opportunity_views.py
+--- a/opportunity/views/opportunity_views.py
++++ b/opportunity/views/opportunity_views.py
+@@ -317,7 +317,11 @@ class OpportunityListView(APIView, LimitOffsetPagination):
+                 str(request.profile.org.id),
+             )
+             return Response(
+-                {"error": False, "message": "Opportunity Created Successfully"},
++                {
++                    "error": False,
++                    "message": "Opportunity Created Successfully",
++                    "id": str(opportunity_obj.id),
++                },
+                 status=status.HTTP_200_OK,
+             )
+ 
+diff --git a/tasks/views/task_views.py b/tasks/views/task_views.py
+--- a/tasks/views/task_views.py
++++ b/tasks/views/task_views.py
+@@ -259,7 +259,11 @@ class TaskListView(APIView, LimitOffsetPagination):
+                     task_obj.save()
+ 
+             return Response(
+-                {"error": False, "message": "Task Created Successfully"},
++                {
++                    "error": False,
++                    "message": "Task Created Successfully",
++                    "id": str(task_obj.id),
++                },
+                 status=status.HTTP_200_OK,
+             )
+         return Response(

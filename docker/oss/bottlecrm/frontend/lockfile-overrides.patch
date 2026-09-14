@@ -1,0 +1,12 @@
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -1,5 +1,8 @@
+ lockfileVersion: '9.0'
+ 
++overrides:
++  svelte-eslint-parser>eslint-scope: ^9.1.0
++
+ settings:
+   autoInstallPeers: true
+   excludeLinksFromLockfile: false

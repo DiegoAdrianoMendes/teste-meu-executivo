@@ -1,0 +1,23 @@
+{
+  "name": "Meu Executivo",
+  "short_name": "Executivo",
+  "description": "Sistema operacional com IA para escritórios.",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#f6f9fc",
+  "theme_color": "#031121",
+  "icons": [
+    {
+      "src": "/logo-icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

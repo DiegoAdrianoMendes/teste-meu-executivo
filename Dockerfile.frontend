@@ -1,0 +1,71 @@
+ARG NODE_IMAGE=node:24-alpine
+ARG NGINX_IMAGE=nginx:1.29.5-alpine
+
+FROM ${NODE_IMAGE} AS frontend-builder
+
+ENV NPM_CONFIG_AUDIT=false \
+    NPM_CONFIG_FUND=false
+
+WORKDIR /build
+
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+COPY frontend/ ./
+
+ARG VITE_API_URL=
+ARG VITE_META_APP_ID=
+ARG VITE_META_CONFIG_ID=
+ARG VITE_META_SOLUTION_ID=
+ARG VITE_APP_SURFACE=workspace
+ENV VITE_API_URL=$VITE_API_URL \
+    VITE_META_APP_ID=$VITE_META_APP_ID \
+    VITE_META_CONFIG_ID=$VITE_META_CONFIG_ID \
+    VITE_META_SOLUTION_ID=$VITE_META_SOLUTION_ID \
+    VITE_APP_SURFACE=$VITE_APP_SURFACE
+
+RUN case "$VITE_APP_SURFACE" in \
+      workspace|platform) npm run "build:$([ "$VITE_APP_SURFACE" = platform ] && echo blackbox || echo app)" ;; \
+      *) echo "VITE_APP_SURFACE inválida: $VITE_APP_SURFACE" >&2; exit 1 ;; \
+    esac \
+    && cp -R "dist-$([ "$VITE_APP_SURFACE" = platform ] && echo blackbox || echo app)" /build/release
+
+FROM ${NGINX_IMAGE} AS runtime
+
+ARG VITE_APP_SURFACE=workspace
+
+COPY docker/frontend/nginx.conf /etc/nginx/nginx.conf
+COPY --from=frontend-builder --chown=101:101 /build/release /usr/share/nginx/html
+
+RUN case "$VITE_APP_SURFACE" in \
+      workspace) printf '%s\n' \
+        'location = /blackbox { return 404; }' \
+        'location ^~ /blackbox/ { return 404; }' \
+        'location / {' \
+        '    expires -1;' \
+        '    try_files $uri $uri/ /index.html;' \
+        '}' \
+        > /etc/nginx/surface-routes.conf ;; \
+      platform) printf '%s\n' \
+        'location = /index.html { internal; }' \
+        'location = /blackbox {' \
+        '    expires -1;' \
+        '    try_files $uri /index.html;' \
+        '}' \
+        'location ^~ /blackbox/ {' \
+        '    expires -1;' \
+        '    try_files $uri $uri/ /index.html;' \
+        '}' \
+        'location / { return 404; }' \
+        > /etc/nginx/surface-routes.conf ;; \
+      *) echo "VITE_APP_SURFACE inválida no runtime: $VITE_APP_SURFACE" >&2; exit 1 ;; \
+    esac
+
+USER 101:101
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=10 \
+    CMD wget --quiet --tries=1 --spider http://127.0.0.1:8080/healthz || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

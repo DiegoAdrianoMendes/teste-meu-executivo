@@ -1,0 +1,94 @@
+title = "Meu Executivo secret scanning"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+  [[rules.allowlists]]
+  description = "CMED catalog keys are deterministic public SHA-256 identifiers, only in the catalogKey field."
+  condition = "AND"
+  regexTarget = "match"
+  paths = [
+  '''(?:^|/)app/data/medication_catalog_cmed_2026_06_10\.json$''',
+  ]
+  regexes = [
+  '''(?i)^"?catalogKey"?\s*:\s*"[0-9a-f]{64}"$''',
+  ]
+
+  [[rules.allowlists]]
+  description = "Reviewed generated OSS registry hashes are exact identifiers, restricted to generated registry artifacts."
+  condition = "AND"
+  regexTarget = "secret"
+  paths = [
+  '''(?:^|/)app/data/oss_function_unit_fixtures\.json$''',
+  '''(?:^|/)app/data/oss_function_unit_dispositions\.json$''',
+  '''(?:^|/)app/data/oss_function_unit_verification\.json$''',
+  '''(?:^|/)app/data/saas_v5/p4-verification\.json$''',
+  '''(?:^|/)docs/oss-function-units\.lock\.json$''',
+  ]
+  regexes = [
+  '''^(0589154ade5b67f4|07382fab11cd8940|145b7e2902aa86f2|315dae17624bc200|6e298735a914f9b6|759c64e189dc0c2f|908625a8cd1bef8e|cbd741230c6de852|e8de4f61e27c139b|fa7c86d05c40bc23|klm-utf8-bytes-per-3-v1)$''',
+  ]
+
+  [[rules.allowlists]]
+  description = "Exact test-only values are synthetic and allowed only in the reviewed files that exercise them."
+  condition = "AND"
+  regexTarget = "secret"
+  paths = [
+  '''(?:^|/)frontend/src/test/platform-notices-service\.test\.ts$''',
+  '''(?:^|/)tests/api/test_conversation_collaboration\.py$''',
+  '''(?:^|/)tests/api/test_klm_operations\.py$''',
+  '''(?:^|/)tests/api/test_omnichannel_social_webhooks\.py$''',
+  '''(?:^|/)tests/api/test_omnichannel_v6\.py$''',
+  '''(?:^|/)tests/api/test_public_api\.py$''',
+  '''(?:^|/)tests/api/test_stripe_billing\.py$''',
+  '''(?:^|/)tests/api/test_whatsapp_external_delivery_security\.py$''',
+  '''(?:^|/)tests/api/test_super_admin_notices\.py$''',
+  '''(?:^|/)tests/integration/test_health_lead_journey\.py$''',
+  '''(?:^|/)tests/mcp/test_tools\.py$''',
+  '''(?:^|/)tests/services/test_knowledge_service\.py$''',
+  '''(?:^|/)tests/services/test_meta_groups_service\.py$''',
+  '''(?:^|/)tests/services/test_oss_native_chattermate_service\.py$''',
+  '''(?:^|/)tests/services/test_oss_native_document_matrix\.py$''',
+  '''(?:^|/)tests/services/test_oss_native_rocketchat_service\.py$''',
+  '''(?:^|/)tests/services/test_saas_benefits_service\.py$''',
+  '''(?:^|/)tests/services/test_saas_benefits_service 2\.py$''',
+  '''(?:^|/)tests/services/test_whatsapp_message_hot_path\.py$''',
+  '''(?:^|/)tests/test_config_security\.py$''',
+  ]
+  regexes = [
+  '''^(schedule-key-123|publish-key-123|standalone-mentions-001|msg-evidence-api-1|tiktok-ignore-secret-at-least-32-characters|hybrid-coexistence-outbound-1|lead-idempotente-001|whsec_f5_valid|whsec_f5_invalid|marketing-allowed-001|cancel-published-001|journey-health-petition-001|qualification-denied-1|global-idempotency-0001|rag-conversation-internal-1|capability-coexistence-001|sk-0123456789abcdef|invalid-execute-0001|Transient-Reconciliation-42|Transient-Rocket-Second-99|indicacao-escritorio-001|resgate-cupom-001|resgate-cupom-002|indicacao-partner-001|same-visible-key-0001|kLM_7vJmW5rD3xQ9pT2nH8cF6sA4zY1uB0eG|verify-secret-123)$''',
+  ]
+
+  [[rules.allowlists]]
+  description = "False positive: the keyword argument opted_in=True after auth_context is a test parameter, not a key. It only ever appeared in this reviewed test file (commit b010e41)."
+  condition = "AND"
+  regexTarget = "secret"
+  paths = ['''(?:^|/)tests/api/test_whatsapp_commercial_ops\.py$''']
+  regexes = ['''^opted_in=True$''']
+
+  [[rules.allowlists]]
+  description = "Historical environment template used this exact retired verification-token placeholder."
+  condition = "AND"
+  regexTarget = "secret"
+  paths = ['''(?:^|/)\.env\.example$''']
+  regexes = ['''^klm-waba-verify-2025$''']
+
+[[rules]]
+id = "linkedin-client-secret"
+
+  [[rules.allowlists]]
+  description = "Reviewed LinkedIn-named OSS registry hashes are exact generated identifiers, not secret values."
+  condition = "AND"
+  regexTarget = "secret"
+  paths = [
+  '''(?:^|/)app/data/oss_function_unit_fixtures\.json$''',
+  '''(?:^|/)app/data/oss_function_unit_dispositions\.json$''',
+  '''(?:^|/)app/data/oss_function_unit_verification\.json$''',
+  '''(?:^|/)docs/oss-function-units\.lock\.json$''',
+  ]
+  regexes = [
+  '''^(3fc93bbd2d178f24|7ef3c83ae980a0f0|d083d5330d7aaaa2|ee9f705ce0b4d0a5)$''',
+  ]

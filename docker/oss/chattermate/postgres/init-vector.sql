@@ -1,0 +1,12 @@
+\set ON_ERROR_STOP on
+
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE SCHEMA IF NOT EXISTS ai AUTHORIZATION CURRENT_USER;
+
+CREATE OR REPLACE FUNCTION public.vector_similarity(vector1 vector, vector2 vector)
+RETURNS double precision
+LANGUAGE sql
+IMMUTABLE
+STRICT
+PARALLEL SAFE
+RETURN 1 - (vector1 <=> vector2);

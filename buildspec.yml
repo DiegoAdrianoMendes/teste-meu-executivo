@@ -1,0 +1,25 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - test -n "$AWS_DEFAULT_REGION"
+      - test -n "$AWS_ACCOUNT_ID"
+      - test -n "$ECR_REPO_NAME"
+      - echo "Logging in to Amazon ECR for Meu Executivo..."
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+      - IMAGE_REPO_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}"
+      - IMAGE_TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION:?CodeBuild deve informar o SHA da fonte}"
+  build:
+    commands:
+      - echo "Building immutable Meu Executivo backend image..."
+      - docker build --pull -t "${IMAGE_REPO_URI}:${IMAGE_TAG}" .
+  post_build:
+    commands:
+      - echo "Pushing immutable backend image..."
+      - docker push "${IMAGE_REPO_URI}:${IMAGE_TAG}"
+      - printf '{"imageUri":"%s","sourceVersion":"%s"}' "${IMAGE_REPO_URI}:${IMAGE_TAG}" "$IMAGE_TAG" > imageDetail.json
+
+artifacts:
+  files:
+    - imageDetail.json

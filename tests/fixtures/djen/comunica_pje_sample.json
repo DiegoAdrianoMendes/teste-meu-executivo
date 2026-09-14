@@ -1,0 +1,89 @@
+{
+  "_fixture_metadata": {
+    "descricao": "Fixture do formato de resposta de comunicaapi.pje.jus.br/api/v1/comunicacao (DJEN), usada pelo worker em modo simulado (KLM_DJEN_LIVE_ENABLED=false). Não é captura de chamada real. O formato dos campos foi conferido contra respostas reais da API em 03/09/2026: numero_processo vem com 20 dígitos sem máscara, a máscara vem em numeroprocessocommascara, data_disponibilizacao é só data.",
+    "fonte": "https://comunicaapi.pje.jus.br/api/v1/comunicacao"
+  },
+  "status": "success",
+  "message": "",
+  "count": 3,
+  "items": [
+    {
+      "id": 900000001,
+      "numero_processo": "00012343720268070001",
+      "numeroprocessocommascara": "0001234-37.2026.8.07.0001",
+      "data_disponibilizacao": "2026-07-20",
+      "siglaTribunal": "TJDFT",
+      "nomeOrgao": "1ª Vara Cível de Brasília",
+      "tipoComunicacao": "Intimação",
+      "tipoDocumento": "Decisão",
+      "meio": "D",
+      "meiocompleto": "Diário de Justiça Eletrônico Nacional",
+      "link": "https://comunica.pje.jus.br/consulta/900000001",
+      "texto": "Fica a parte requerida INTIMADA para, no prazo de 15 (quinze) dias úteis, apresentar CONTESTAÇÃO, nos termos do art. 335 do CPC, sob pena de revelia.",
+      "status": "P",
+      "ativo": true,
+      "hash": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+      "destinatarioadvogados": [
+        {
+          "advogado": {
+            "nome": "Advogado Exemplo da Silva",
+            "numero_oab": "68812",
+            "uf_oab": "DF"
+          }
+        }
+      ]
+    },
+    {
+      "id": 900000002,
+      "numero_processo": "00076541320268070016",
+      "numeroprocessocommascara": "0007654-13.2026.8.07.0016",
+      "data_disponibilizacao": "2026-07-21",
+      "siglaTribunal": "TJDFT",
+      "nomeOrgao": "3ª Vara Cível de São Sebastião",
+      "tipoComunicacao": "Intimação",
+      "tipoDocumento": "Despacho",
+      "meio": "D",
+      "meiocompleto": "Diário de Justiça Eletrônico Nacional",
+      "link": "https://comunica.pje.jus.br/consulta/900000002",
+      "texto": "Intime-se a parte autora para se manifestar sobre a petição da parte contrária, no prazo de 5 (cinco) dias úteis.",
+      "status": "P",
+      "ativo": true,
+      "hash": "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5",
+      "destinatarioadvogados": [
+        {
+          "advogado": {
+            "nome": "Advogado Exemplo da Silva",
+            "numero_oab": "68812",
+            "uf_oab": "DF"
+          }
+        }
+      ]
+    },
+    {
+      "id": 900000003,
+      "numero_processo": "00012343720268070001",
+      "numeroprocessocommascara": "0001234-37.2026.8.07.0001",
+      "data_disponibilizacao": "2026-07-22",
+      "siglaTribunal": "TJDFT",
+      "nomeOrgao": "1ª Vara Cível de Brasília",
+      "tipoComunicacao": "Publicação",
+      "tipoDocumento": "Ato ordinatório",
+      "meio": "D",
+      "meiocompleto": "Diário de Justiça Eletrônico Nacional",
+      "link": "https://comunica.pje.jus.br/consulta/900000003",
+      "texto": "Certifico que decorreu o prazo para manifestação da parte requerida sem apresentação de resposta. Encaminhem-se os autos conclusos.",
+      "status": "P",
+      "ativo": true,
+      "hash": "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6",
+      "destinatarioadvogados": [
+        {
+          "advogado": {
+            "nome": "Advogado Exemplo da Silva",
+            "numero_oab": "68812",
+            "uf_oab": "DF"
+          }
+        }
+      ]
+    }
+  ]
+}
