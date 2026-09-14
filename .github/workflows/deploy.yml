@@ -75,7 +75,7 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -331,7 +331,7 @@ jobs:
       candidate_evidence_sha256: ${{ steps.candidate-evidence.outputs.evidence_sha256 }}
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Validate candidate qualification variables
         run: ./scripts/verify_aws_v1_candidate_environment.sh
@@ -489,7 +489,7 @@ jobs:
       KLM_RELEASE_MODE: greenfield-prepare
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Validate prepared-migration variables
         run: ./scripts/verify_aws_v1_migrate_prepared_environment.sh
