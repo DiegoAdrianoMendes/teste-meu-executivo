@@ -10,7 +10,7 @@ pydantic-settings==2.5.2
 jsonschema==4.23.0
 python-jose[cryptography]==3.3.0
 PyJWT==2.10.1
-bcrypt==4.2.0
+bcrypt==4.3.0
 python-multipart==0.0.12
 redis[hiredis]==5.1.1
 celery[redis]==5.4.0
