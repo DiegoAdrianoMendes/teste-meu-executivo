@@ -351,7 +351,7 @@ jobs:
             .
 
       - name: Configure image credentials through OIDC
-        uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c # v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ env.AWS_IMAGE_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
@@ -566,7 +566,7 @@ jobs:
           echo "CANDIDATE_ARTIFACT_DIGEST=$CANDIDATE_ARTIFACT_DIGEST" >> "$GITHUB_ENV"
 
       - name: Configure migration preflight credentials through OIDC
-        uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c # v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ env.AWS_MIGRATION_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
@@ -580,7 +580,7 @@ jobs:
         run: ./scripts/verify_aws_v1_prepared_state.sh
 
       - name: Configure runtime snapshot credentials through OIDC
-        uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c # v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ env.AWS_RUNTIME_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
@@ -610,7 +610,7 @@ jobs:
           echo "RDS_SNAPSHOT_STATUS=$snapshot_status" >> "$GITHUB_ENV"
 
       - name: Configure migration execution credentials through OIDC
-        uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c # v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ env.AWS_MIGRATION_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
